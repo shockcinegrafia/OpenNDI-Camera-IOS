@@ -35,8 +35,8 @@ jobs:
           ln -s "$SDK" "$RUNNER_TEMP/theos/sdks/$(basename "$SDK")"
           echo "SDK_FOUND=$(basename "$SDK")" >> "$GITHUB_ENV"
           echo "Found SDK: $SDK"
-          test -d "$SDK/System/Library/Frameworks/Foundation.framework"
-          test -d "$SDK/System/Library/Frameworks/AVFoundation.framework"
+          test -d "$SDK/System/Library/Frameworks/Foundation.framework" || { echo "::error::Foundation.framework missing from SDK"; exit 1; }
+          test -d "$SDK/System/Library/Frameworks/AVFoundation.framework" || { echo "::error::AVFoundation.framework missing from SDK"; exit 1; }
 
       - name: Build ARMv7 application
         shell: bash
@@ -46,7 +46,24 @@ jobs:
           echo "SDK: $SDK_FOUND" | tee packages/build-report.txt
           echo "Host: $(uname -a)" | tee -a packages/build-report.txt
           echo "Clang: $(xcrun --find clang)" | tee -a packages/build-report.txt
-          make clean package 2>&1 | tee packages/build.log
+          set +e
+          make clean package > packages/build.log 2>&1
+          status=$?
+          set -e
+          cat packages/build.log
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Theos make package failed with exit code $status. See build.log artifact."
+            {
+              echo "### ARMv7 compilation failed"
+              echo ""
+              echo "Exit code: $status"
+              echo ""
+              echo '~~~'
+              tail -n 45 packages/build.log
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit "$status"
+          fi
 
       - name: Validate architecture and package IPA
         shell: bash
