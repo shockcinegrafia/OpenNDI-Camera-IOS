@@ -18,6 +18,8 @@ jobs:
           set -euo pipefail
           test -f Makefile
           test -f control
+          test -f scripts/package-ipa.sh
+          bash -n scripts/package-ipa.sh
           test -f ios/OpenNDILegacy/main.m
           test -f ios/OpenNDILegacy/Info.plist
           grep -Eq '^ARCHS := armv7$' Makefile
