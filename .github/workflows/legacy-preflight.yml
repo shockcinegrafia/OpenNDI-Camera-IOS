@@ -1,0 +1,34 @@
+name: Legacy iOS 9 build preflight
+on:
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check legacy build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking iOS 9 ARMv7 build prerequisites"
+          test -f Makefile
+          test -f ios/OpenNDILegacy/Info.plist
+          if [ -z "${THEOS:-}" ] || [ ! -f "${THEOS}/makefiles/common.mk" ]; then
+            echo "::error::THEOS is not configured. A compatible legacy Theos toolchain and iOS SDK must be provisioned."
+            exit 1
+          fi
+          if ! find "${THEOS}/sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' | grep -q .; then
+            echo "::error::iOS 9 SDK missing. Cannot safely claim an ARMv7 IPA build."
+            exit 1
+          fi
+          echo "Legacy SDK found; checking toolchain"
+          make package
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenNDI-Legacy-build
+          path: |
+            packages/*.deb
+            packages/*.ipa
+          if-no-files-found: error
