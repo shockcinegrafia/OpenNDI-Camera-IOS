@@ -1,34 +1,36 @@
-name: Legacy iOS 9 build preflight
+name: Legacy iOS 9 source preflight
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'ios/**'
+      - 'Makefile'
+      - 'control'
+      - '.github/workflows/legacy-preflight.yml'
 jobs:
-  preflight:
-    runs-on: macos-15
+  source-preflight:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check legacy build prerequisites
+      - name: Validate source and metadata
         shell: bash
         run: |
           set -euo pipefail
-          echo "Checking iOS 9 ARMv7 build prerequisites"
           test -f Makefile
+          test -f control
+          test -f ios/OpenNDILegacy/main.m
           test -f ios/OpenNDILegacy/Info.plist
-          if [ -z "${THEOS:-}" ] || [ ! -f "${THEOS}/makefiles/common.mk" ]; then
-            echo "::error::THEOS is not configured. A compatible legacy Theos toolchain and iOS SDK must be provisioned."
-            exit 1
-          fi
-          if ! find "${THEOS}/sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' | grep -q .; then
-            echo "::error::iOS 9 SDK missing. Cannot safely claim an ARMv7 IPA build."
-            exit 1
-          fi
-          echo "Legacy SDK found; checking toolchain"
-          make package
-      - name: Upload build artifacts
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: OpenNDI-Legacy-build
-          path: |
-            packages/*.deb
-            packages/*.ipa
-          if-no-files-found: error
+          grep -Eq '^ARCHS := armv7$' Makefile
+          grep -Eq '^TARGET := iphone:clang:9.3:9.0$' Makefile
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          plist = plistlib.loads(Path('ios/OpenNDILegacy/Info.plist').read_bytes())
+          assert plist['MinimumOSVersion'] == '9.0'
+          assert plist['CFBundleExecutable'] == 'OpenNDILegacy'
+          print('Source metadata OK. This is NOT an ARMv7 compilation.')
+          PY
+      - name: Report build requirements
+        run: |
+          echo 'An ARMv7-compatible Theos compiler and licensed iOS 9 SDK are still required.'
+          echo 'No IPA or DEB is produced by this source-only workflow.'
