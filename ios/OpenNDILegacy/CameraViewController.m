@@ -1,10 +1,15 @@
 #import "CameraViewController.h"
 #import <AVFoundation/AVFoundation.h>
+#import "CameraFrameStore.h"
+#import "RemoteHTTPServer.h"
 @interface CameraViewController ()
 @property (nonatomic, strong) AVCaptureSession *session;
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
 @property (nonatomic, strong) UIButton *toggleButton;
 @property (nonatomic, assign) BOOL previewEnabled;
+@property (nonatomic, strong) CameraFrameStore *frameStore;
+@property (nonatomic, strong) RemoteHTTPServer *webServer;
+@property (nonatomic, strong) dispatch_queue_t captureQueue;
 @end
 @implementation CameraViewController
 - (void)viewDidLoad {
@@ -37,7 +42,20 @@
     self.previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:self.session];
     self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     self.previewLayer.frame = self.view.bounds;
-    [self.session startRunning];
+    self.frameStore = [[CameraFrameStore alloc] init];
+    self.captureQueue = dispatch_queue_create("com.shockcinegrafia.legacy.frames", DISPATCH_QUEUE_SERIAL);
+    AVCaptureVideoDataOutput *output = [[AVCaptureVideoDataOutput alloc] init];
+    output.alwaysDiscardsLateVideoFrames = YES;
+    output.videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
+    if ([self.session canAddOutput:output]) {
+        [self.session addOutput:output];
+        [output setSampleBufferDelegate:self.frameStore queue:self.captureQueue];
+    }
+    self.webServer = [[RemoteHTTPServer alloc] initWithFrameStore:self.frameStore];
+    [self.webServer start];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self.session startRunning];
+    });
 }
 - (void)togglePreview {
     self.previewEnabled = !self.previewEnabled;
@@ -51,6 +69,7 @@
 }
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    [self.session stopRunning];
+    [self.webServer stop];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{ [self.session stopRunning]; });
 }
 @end
