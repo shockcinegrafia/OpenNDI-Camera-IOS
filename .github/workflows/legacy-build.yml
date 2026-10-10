@@ -1,35 +1,54 @@
-name: Build iOS 9 ARMv7 (self-hosted)
+name: Build iOS 9 ARMv7 (GitHub-hosted)
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   build:
-    # Requires a self-hosted runner prepared with an ARMv7-capable
-    # Theos compiler, iPhoneOS9.x SDK, lipo, and package tooling.
-    runs-on: [self-hosted, macOS, ios9-armv7]
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Validate toolchain
+
+      - name: Install Theos
         shell: bash
         run: |
           set -euo pipefail
-          : "${THEOS:?THEOS must be set on the runner}"
-          test -f "$THEOS/makefiles/common.mk"
-          test -d "$THEOS/sdks"
-          find "$THEOS/sdks" -maxdepth 1 -name 'iPhoneOS9*.sdk' | grep -q .
-          command -v make
-          command -v lipo
-          command -v zip
-      - name: Build rootful jailbreak package
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
+          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/theos/bin" >> "$GITHUB_PATH"
+
+      - name: Check ARMv7 compiler and SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking toolchain on GitHub-hosted macOS..."
+          xcrun --find clang
+          clang --version
+          if [ ! -d "$THEOS/sdks" ]; then mkdir -p "$THEOS/sdks"; fi
+          if ! find "$THEOS/sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' | grep -q .; then
+            echo "::error::iPhoneOS9.x SDK not present. The workflow cannot legally obtain or redistribute Apple's legacy SDK automatically. Supply an authorized SDK via an approved mechanism."
+            exit 1
+          fi
+          if ! xcrun --sdk iphoneos clang -arch armv7 -miphoneos-version-min=9.0 -x objective-c -fsyntax-only - <<< '#import <Foundation/Foundation.h>' ; then
+            echo "::error::Installed Apple toolchain does not support ARMv7 with available SDK. A compatible legacy toolchain is required."
+            exit 1
+          fi
+
+      - name: Build package
         run: make clean package
-      - name: Locate app and package IPA
+
+      - name: Package unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
-          APP="$(find .theos -type d -name 'OpenNDILegacy.app' -print -quit)"
+          APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
           test -n "$APP"
           bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
-      - name: Upload packages
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: OpenNDI-Camera-Legacy-ARMv7
