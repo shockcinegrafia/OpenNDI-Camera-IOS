@@ -28,16 +28,40 @@
     [self.toggleButton setTitle:@"Show local preview" forState:UIControlStateNormal];
     [self.toggleButton addTarget:self action:@selector(togglePreview) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.toggleButton];
-    [self configureCamera];
+    AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    if (status == AVAuthorizationStatusAuthorized) {
+        [self configureCamera];
+    } else if (status == AVAuthorizationStatusNotDetermined) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (granted) [self configureCamera];
+                else [self showCameraError:@"Camera permission denied. Enable camera access in Settings."];
+            });
+        }];
+    } else {
+        [self showCameraError:@"Camera access unavailable. Check iOS privacy settings."];
+    }
+}
+- (void)showCameraError:(NSString *)message {
+    UILabel *errorLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 185, self.view.bounds.size.width - 40, 100)];
+    errorLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    errorLabel.textColor = [UIColor orangeColor];
+    errorLabel.numberOfLines = 0;
+    errorLabel.textAlignment = NSTextAlignmentCenter;
+    errorLabel.text = message;
+    [self.view addSubview:errorLabel];
 }
 - (void)configureCamera {
     self.session = [[AVCaptureSession alloc] init];
     if ([self.session canSetSessionPreset:AVCaptureSessionPreset640x480]) self.session.sessionPreset = AVCaptureSessionPreset640x480;
     AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    if (!device) return;
+    if (!device) { [self showCameraError:@"No video camera available."]; return; }
     NSError *error = nil;
     AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
-    if (!input || ![self.session canAddInput:input]) return;
+    if (!input || ![self.session canAddInput:input]) {
+        [self showCameraError:error.localizedDescription ?: @"Cannot open camera."];
+        return;
+    }
     [self.session addInput:input];
     self.previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:self.session];
     self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
