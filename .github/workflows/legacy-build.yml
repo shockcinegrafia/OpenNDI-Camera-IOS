@@ -53,6 +53,12 @@ jobs:
           APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
           test -n "$APP"
           bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
+      - name: Enforce actual ARMv7 build result
+        if: steps.inspect.outputs.sdk_available != 'true'
+        shell: bash
+        run: |
+          echo "::error::No iOS 9 SDK was found. ARMv7 build was not performed; failing instead of reporting a misleading green result."
+          exit 1
       - name: Upload readiness report and available artifacts
         if: always()
         uses: actions/upload-artifact@v4
