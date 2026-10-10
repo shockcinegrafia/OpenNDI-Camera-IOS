@@ -1,7 +1,5 @@
 TARGET := iphone:clang:9.3:9.0
 ARCHS := armv7
-THEOS_PACKAGE_SCHEME := rootful
-
 include $(THEOS)/makefiles/common.mk
 
 APPLICATION_NAME = OpenNDILegacy
