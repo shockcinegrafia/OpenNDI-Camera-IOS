@@ -1,0 +1,9 @@
+Package: com.shockcinegrafia.openndilegacy
+Name: OpenNDI Camera Legacy
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: iOS 9 ARMv7 camera development preview
+Maintainer: shockcinegrafia
+Author: shockcinegrafia
+Section: Multimedia
+Depends: firmware (>= 9.0)
