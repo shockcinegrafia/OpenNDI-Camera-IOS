@@ -1,4 +1,4 @@
-name: ARMv7 build readiness and packaging
+name: ARMv7 iOS 9 Theos SDK experiment
 on:
   workflow_dispatch:
   push:
@@ -14,55 +14,54 @@ permissions:
 jobs:
   armv7:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect GitHub-hosted toolchain
-        id: inspect
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p packages
-          {
-            echo "OpenNDI Legacy ARMv7 build readiness"
-            echo "Host: $(uname -a)"
-            echo "Xcode: $(xcodebuild -version | tr '\n' ' ')"
-            echo "SDKs:"
-            xcodebuild -showsdks
-            echo "Clang: $(xcrun --find clang)"
-            echo "ARMv7 iOS9 SDK directories:"
-            find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' -print 2>/dev/null || true
-          } | tee packages/toolchain-report.txt
-          if find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' 2>/dev/null | grep -q .; then
-            echo "sdk_available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "sdk_available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::iOS 9 SDK is unavailable on this runner. No build will be attempted."
-          fi
-      - name: Install Theos and build (only with compatible SDK)
-        if: steps.inspect.outputs.sdk_available == 'true'
+
+      - name: Install Theos and SDK repository
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
-          export THEOS="$RUNNER_TEMP/theos"
-          mkdir -p "$THEOS/sdks"
-          SDK="$(find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' -print -quit)"
-          ln -s "$SDK" "$THEOS/sdks/iPhoneOS9.3.sdk"
-          make clean package
-          APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
-          test -n "$APP"
-          bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
-      - name: Enforce actual ARMv7 build result
-        if: steps.inspect.outputs.sdk_available != 'true'
+          git clone --depth 1 https://github.com/theos/sdks.git "$RUNNER_TEMP/theos-sdks"
+          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/theos/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/theos/sdks"
+          SDK="$(find "$RUNNER_TEMP/theos-sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' -print -quit)"
+          if [ -z "$SDK" ]; then
+            echo "::error::No iPhoneOS9.x SDK in the Theos SDK repository."
+            exit 1
+          fi
+          ln -s "$SDK" "$RUNNER_TEMP/theos/sdks/$(basename "$SDK")"
+          echo "SDK_FOUND=$(basename "$SDK")" >> "$GITHUB_ENV"
+          echo "Found SDK: $SDK"
+          test -d "$SDK/System/Library/Frameworks/Foundation.framework"
+          test -d "$SDK/System/Library/Frameworks/AVFoundation.framework"
+
+      - name: Build ARMv7 application
         shell: bash
         run: |
-          echo "::error::No iOS 9 SDK was found. ARMv7 build was not performed; failing instead of reporting a misleading green result."
-          exit 1
-      - name: Upload readiness report and available artifacts
+          set -euo pipefail
+          mkdir -p packages
+          echo "SDK: $SDK_FOUND" | tee packages/build-report.txt
+          echo "Host: $(uname -a)" | tee -a packages/build-report.txt
+          echo "Clang: $(xcrun --find clang)" | tee -a packages/build-report.txt
+          make clean package 2>&1 | tee packages/build.log
+
+      - name: Validate architecture and package IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$(find .theos -type d -name 'OpenNDILegacy.app' -print -quit)"
+          test -n "$APP"
+          bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
+          lipo -info "$APP/OpenNDILegacy" | tee -a packages/build-report.txt
+
+      - name: Upload build logs and artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenNDI-ARMv7-diagnostics
-          path: packages/
+          name: OpenNDI-ARMv7-Theos-experiment
+          path: |
+            packages/
           if-no-files-found: warn
