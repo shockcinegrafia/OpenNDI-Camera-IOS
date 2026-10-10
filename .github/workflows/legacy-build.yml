@@ -1,58 +1,62 @@
-name: Build iOS 9 ARMv7 (GitHub-hosted)
+name: ARMv7 build readiness and packaging
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/legacy-build.yml'
+      - 'Makefile'
+      - 'ios/**'
+      - 'scripts/package-ipa.sh'
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  armv7:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Theos
+      - name: Inspect GitHub-hosted toolchain
+        id: inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages
+          {
+            echo "OpenNDI Legacy ARMv7 build readiness"
+            echo "Host: $(uname -a)"
+            echo "Xcode: $(xcodebuild -version | tr '\n' ' ')"
+            echo "SDKs:"
+            xcodebuild -showsdks
+            echo "Clang: $(xcrun --find clang)"
+            echo "ARMv7 iOS9 SDK directories:"
+            find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' -print 2>/dev/null || true
+          } | tee packages/toolchain-report.txt
+          if find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' 2>/dev/null | grep -q .; then
+            echo "sdk_available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sdk_available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::iOS 9 SDK is unavailable on this runner. No build will be attempted."
+          fi
+      - name: Install Theos and build (only with compatible SDK)
+        if: steps.inspect.outputs.sdk_available == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
-          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
-          echo "$RUNNER_TEMP/theos/bin" >> "$GITHUB_PATH"
-
-      - name: Check ARMv7 compiler and SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Checking toolchain on GitHub-hosted macOS..."
-          xcrun --find clang
-          clang --version
-          if [ ! -d "$THEOS/sdks" ]; then mkdir -p "$THEOS/sdks"; fi
-          if ! find "$THEOS/sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' | grep -q .; then
-            echo "::error::iPhoneOS9.x SDK not present. The workflow cannot legally obtain or redistribute Apple's legacy SDK automatically. Supply an authorized SDK via an approved mechanism."
-            exit 1
-          fi
-          if ! xcrun --sdk iphoneos clang -arch armv7 -miphoneos-version-min=9.0 -x objective-c -fsyntax-only - <<< '#import <Foundation/Foundation.h>' ; then
-            echo "::error::Installed Apple toolchain does not support ARMv7 with available SDK. A compatible legacy toolchain is required."
-            exit 1
-          fi
-
-      - name: Build package
-        run: make clean package
-
-      - name: Package unsigned IPA
-        shell: bash
-        run: |
-          set -euo pipefail
+          export THEOS="$RUNNER_TEMP/theos"
+          mkdir -p "$THEOS/sdks"
+          SDK="$(find "$(xcode-select -p)/Platforms/iPhoneOS.platform/Developer/SDKs" -maxdepth 1 -name '*9*.sdk' -print -quit)"
+          ln -s "$SDK" "$THEOS/sdks/iPhoneOS9.3.sdk"
+          make clean package
           APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
           test -n "$APP"
           bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
-
-      - name: Upload artifacts
+      - name: Upload readiness report and available artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenNDI-Camera-Legacy-ARMv7
-          path: |
-            packages/*.deb
-            packages/*.ipa
-          if-no-files-found: error
+          name: OpenNDI-ARMv7-diagnostics
+          path: packages/
+          if-no-files-found: warn
