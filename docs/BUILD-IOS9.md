@@ -44,3 +44,14 @@ Theos `make package` normally produces a **.deb**, not an IPA. The package must 
 5. From another device on the same trusted LAN, open `http://IP-DO-IPAD:8088/`.
 6. Inspect `/api/status` and `/snapshot.jpg`.
 7. Record CPU, battery and frame rate; no NDI performance claim before benchmarks.
+
+## GitHub Actions build
+
+The repository now includes two separate workflows:
+
+- `legacy-preflight.yml`: checks source layout and metadata on a GitHub-hosted Ubuntu runner. Does not compile iOS code.
+- `legacy-build.yml`: builds with `make clean package` on a **self-hosted macOS runner** labeled `ios9-armv7`, then packages an unsigned IPA and uploads both artifacts.
+
+The build workflow will remain queued until a matching runner is online. Provision the runner yourself with a legitimate iOS 9 SDK and a working ARMv7 toolchain. No external download of Apple SDKs is automated by this repository.
+
+This is infrastructure only; no build has been successfully verified on hardware yet.
