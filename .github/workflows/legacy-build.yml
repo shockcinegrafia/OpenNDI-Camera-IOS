@@ -116,10 +116,23 @@ jobs:
             tail -n 100 packages/build.log
             exit 1
           }
-          APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
-          test -n "$APP"
-          bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
+          # Theos may remove its staging .app after building the Debian package.
+          # Extract the signed ARMv7 binary from the produced .deb instead.
+          DEB="$(find packages -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -n "$DEB"
+          STAGE="$RUNNER_TEMP/openndi-ipa-stage"
+          mkdir -p "$STAGE"
+          (cd "$STAGE" && ar -x "$GITHUB_WORKSPACE/$DEB" && tar -xf data.tar.lzma)
+          APP="$STAGE/Applications/OpenNDILegacy.app"
+          test -f "$APP/OpenNDILegacy"
+          # Legacy Theos did not include Info.plist in the previous .deb.
+          # The IPA must include it even when the package stage omits it.
+          if [ ! -f "$APP/Info.plist" ]; then
+            cp ios/OpenNDILegacy/Info.plist "$APP/Info.plist"
+          fi
+          plutil -lint "$APP/Info.plist"
           lipo -info "$APP/OpenNDILegacy"
+          bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
       - name: Upload IPA and logs (never upload SDK)
         if: always()
         uses: actions/upload-artifact@v4
