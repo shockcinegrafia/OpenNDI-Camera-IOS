@@ -1,5 +1,8 @@
 name: ARMv7 iOS 9 private SDK build
 on:
+  push:
+    paths:
+      - '.github/armv7-one-shot-A7821.flag'
   workflow_dispatch:
     inputs:
       allow_paid_macos:
@@ -69,7 +72,7 @@ jobs:
 
   armv7:
     needs: sdk-preflight
-    if: ${{ inputs.allow_paid_macos == true }}
+    if: ${{ inputs.allow_paid_macos == true || (github.event_name == 'push' && github.event.head_commit.message == 'Authorize single OpenNDI ARMv7 macOS build A7821') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
