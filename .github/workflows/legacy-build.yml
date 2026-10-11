@@ -25,11 +25,11 @@ jobs:
           import re
           sdk = Path("iPhoneOS9.3.sdk")
           stub = (sdk / "usr/lib/libSystem.B.tbd").read_text()
-          match = re.search(r"reexported-libraries:\\s*\\[([^]]+)\\]", stub, re.S)
+          match = re.search(r"reexported-libraries:\s*\[([^]]+)\]", stub, re.S)
           if not match:
               raise SystemExit("Cannot verify libSystem reexports: unexpected stub format")
           missing = []
-          for lib in re.findall(r"/usr/lib/[^,\\s\\]]+\\.dylib", match.group(1)):
+          for lib in re.findall(r"/usr/lib/[^,\s\]]+\.dylib", match.group(1)):
               path = sdk / lib.lstrip("/")
               if not (path.exists() or path.with_suffix(".tbd").exists()):
                   missing.append(lib)
