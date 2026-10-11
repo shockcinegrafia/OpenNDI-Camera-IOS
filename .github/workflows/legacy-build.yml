@@ -81,8 +81,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check google-auth requests
-          python3 scripts/download-private-sdk.py "$RUNNER_TEMP/sdk-private.zip"
+          # Homebrew Python on macOS is externally managed (PEP 668).
+          # Install dependencies in an isolated environment; never modify system Python.
+          python3 -m venv "$RUNNER_TEMP/openndi-sdk-venv"
+          "$RUNNER_TEMP/openndi-sdk-venv/bin/python" -m pip install --disable-pip-version-check google-auth requests
+          "$RUNNER_TEMP/openndi-sdk-venv/bin/python" scripts/download-private-sdk.py "$RUNNER_TEMP/sdk-private.zip"
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
           export THEOS="$RUNNER_TEMP/theos"
           mkdir -p "$THEOS/sdks" "$RUNNER_TEMP/sdk-unpacked"
