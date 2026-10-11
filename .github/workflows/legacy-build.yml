@@ -1,9 +1,9 @@
-name: ARMv7 iOS 9 Theos SDK experiment
+name: ARMv7 iOS 9 private SDK build
 on:
   workflow_dispatch:
     inputs:
       allow_paid_macos:
-        description: 'Explicitly authorize paid macOS build (requires private SDK integration)'
+        description: 'I explicitly authorize the macOS build'
         required: true
         type: boolean
         default: false
@@ -11,134 +11,113 @@ on:
 permissions:
   contents: read
 
+env:
+  SDK_GDRIVE_FILE_ID: ${{ vars.SDK_GDRIVE_FILE_ID }}
+  SDK_SHA256: ${{ vars.SDK_SHA256 }}
+
 jobs:
   sdk-preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Inspect Theos SDK dependencies without macOS minutes
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git sdk-repo
-          cd sdk-repo
-          git sparse-checkout set iPhoneOS9.3.sdk
-          SDK=iPhoneOS9.3.sdk
-          test -f "$SDK/usr/lib/libSystem.B.tbd"
-          echo "Checking iOS 9.3 libSystem reexports for ARMv7..."
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          sdk = Path("iPhoneOS9.3.sdk")
-          stub = (sdk / "usr/lib/libSystem.B.tbd").read_text()
-          match = re.search(r"reexported-libraries:\s*\[([^]]+)\]", stub, re.S)
-          if not match:
-              raise SystemExit("Cannot verify libSystem reexports: unexpected stub format")
-          missing = []
-          for lib in re.findall(r"/usr/lib/[^,\s\]]+\.dylib", match.group(1)):
-              path = sdk / lib.lstrip("/")
-              if not (path.exists() or path.with_suffix(".tbd").exists()):
-                  missing.append(lib)
-          print("Missing reexported libraries:", missing)
-          if missing:
-              raise SystemExit("SDK incomplete for modern linker; stopping before paid macOS job")
-          PY
-  armv7:
-    if: ${{ inputs.allow_paid_macos == true && vars.PRIVATE_IOS9_SDK_READY == 'true' }}
-    needs: sdk-preflight
-    runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Theos and SDK repository
+      - name: Require private SDK credentials and settings
+        env:
+          SDK_CREDENTIALS: ${{ secrets.SDK_GDRIVE_SA_JSON }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$SDK_CREDENTIALS" || { echo "::error::Missing SDK_GDRIVE_SA_JSON secret"; exit 1; }
+          test -n "$SDK_GDRIVE_FILE_ID" || { echo "::error::Missing SDK_GDRIVE_FILE_ID variable"; exit 1; }
+          test -n "$SDK_SHA256" || { echo "::error::Missing SDK_SHA256 variable"; exit 1; }
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.SDK_GDRIVE_SA_JSON }}
+      - name: Download and inspect original private SDK (Linux only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check google-auth requests
+          python3 scripts/download-private-sdk.py "$RUNNER_TEMP/sdk-private.zip"
+          python3 - "$RUNNER_TEMP/sdk-private.zip" <<'PY'
+          import pathlib, sys, zipfile
+          path = pathlib.Path(sys.argv[1])
+          with zipfile.ZipFile(path) as z:
+              bad = z.testzip()
+              if bad:
+                  sys.exit("Corrupt SDK ZIP member")
+              names = set(z.namelist())
+              required = [
+                  "iPhoneOS.sdk/SDKSettings.plist",
+                  "iPhoneOS.sdk/usr/lib/libSystem.B.tbd",
+                  "iPhoneOS.sdk/System/Library/Frameworks/Foundation.framework/Foundation.tbd",
+                  "iPhoneOS.sdk/System/Library/Frameworks/AVFoundation.framework/AVFoundation.tbd",
+              ]
+              for name in required:
+                  if name not in names:
+                      sys.exit("Missing SDK entry: " + name)
+              for name in required[1:]:
+                  data = z.read(name).decode("utf-8", errors="replace")
+                  if "armv7" not in data or "platform:        ios" not in data:
+                      sys.exit("Invalid ARMv7 iOS platform stub: " + name)
+                  if "liblaunch.dylib" in data:
+                      sys.exit("liblaunch reference found: " + name)
+              print("Original iPhoneOS SDK validated on Linux; no paid macOS job required")
+          PY
+      - name: Confirm private SDK preflight
+        run: echo "Private iOS 9 SDK passed Linux ZIP and stub checks" >> "$GITHUB_STEP_SUMMARY"
+
+  armv7:
+    needs: sdk-preflight
+    if: ${{ inputs.allow_paid_macos == true && vars.PRIVATE_IOS9_SDK_READY == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.SDK_GDRIVE_SA_JSON }}
+      - name: Install Theos and original private SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check google-auth requests
+          python3 scripts/download-private-sdk.py "$RUNNER_TEMP/sdk-private.zip"
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
-          git clone --depth 1 https://github.com/theos/sdks.git "$RUNNER_TEMP/theos-sdks"
-          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
-          echo "$RUNNER_TEMP/theos/bin" >> "$GITHUB_PATH"
-          mkdir -p "$RUNNER_TEMP/theos/sdks"
-          SDK="$(find "$RUNNER_TEMP/theos-sdks" -maxdepth 1 -type d -name 'iPhoneOS9*.sdk' -print -quit)"
-          if [ -z "$SDK" ]; then
-            echo "::error::No iPhoneOS9.x SDK in the Theos SDK repository."
-            exit 1
-          fi
-          ln -s "$SDK" "$RUNNER_TEMP/theos/sdks/$(basename "$SDK")"
-          echo "SDK_FOUND=$(basename "$SDK")" >> "$GITHUB_ENV"
-          echo "Found SDK: $SDK"
-          test -d "$SDK/System/Library/Frameworks/Foundation.framework" || { echo "::error::Foundation.framework missing from SDK"; exit 1; }
-          test -d "$SDK/System/Library/Frameworks/AVFoundation.framework" || { echo "::error::AVFoundation.framework missing from SDK"; exit 1; }
-
-      - name: Diagnose SDK target platforms and liblaunch dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p packages
-          SDK="$THEOS/sdks/$SDK_FOUND"
-          {
-            echo "SDK path: $SDK"
-            echo "SDK realpath: $(cd "$SDK" && pwd -P)"
-            echo "SDK root libSystem:"
-            ls -l "$SDK/usr/lib/libSystem.tbd" || true
-            echo "SDK liblaunch candidates:"
-            find "$SDK" -iname '*liblaunch*' -print || true
-            echo "SDK stub platform metadata:"
-            for stub in "$SDK/usr/lib/libSystem.tbd" "$SDK/usr/lib/libobjc.tbd" "$SDK/System/Library/Frameworks/Foundation.framework/Foundation.tbd"; do
-              echo "----- $stub -----"
-              if [ -f "$stub" ]; then
-                grep -nE '^(archs|targets|platform|install-name|reexported-libraries):|liblaunch' "$stub" | head -n 55 || true
-              else
-                echo "Missing"
-              fi
-            done
-            echo "Clang and linker:"
-            xcrun --find clang
-            xcrun --find ld
-          } | tee packages/sdk-linker-diagnostic.txt
-
+          export THEOS="$RUNNER_TEMP/theos"
+          mkdir -p "$THEOS/sdks" "$RUNNER_TEMP/sdk-unpacked"
+          python3 - "$RUNNER_TEMP/sdk-private.zip" "$RUNNER_TEMP/sdk-unpacked" <<'PY'
+          import pathlib, sys, zipfile
+          target = pathlib.Path(sys.argv[2]).resolve()
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              for info in z.infolist():
+                  name = pathlib.PurePosixPath(info.filename)
+                  if name.is_absolute() or ".." in name.parts:
+                      sys.exit("Unsafe SDK ZIP path")
+              z.extractall(target)
+          PY
+          test -f "$RUNNER_TEMP/sdk-unpacked/iPhoneOS.sdk/usr/lib/libSystem.B.tbd"
+          ln -s "$RUNNER_TEMP/sdk-unpacked/iPhoneOS.sdk" "$THEOS/sdks/iPhoneOS9.3.sdk"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+          echo "Original private iPhoneOS9.3 SDK installed"
       - name: Build ARMv7 application
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p packages
-          echo "SDK: $SDK_FOUND" | tee packages/build-report.txt
-          echo "Host: $(uname -a)" | tee -a packages/build-report.txt
-          echo "Clang: $(xcrun --find clang)" | tee -a packages/build-report.txt
-          set +e
-          make clean package > packages/build.log 2>&1
-          status=$?
-          set -e
-          cat packages/build.log
-          if [ "$status" -ne 0 ]; then
-            echo "::error::Theos make package failed with exit code $status. See build.log artifact."
-            {
-              echo "### ARMv7 compilation failed"
-              echo ""
-              echo "Exit code: $status"
-              echo ""
-              echo '~~~'
-              tail -n 45 packages/build.log
-              echo '~~~'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit "$status"
-          fi
-
-      - name: Validate architecture and package IPA
-        shell: bash
-        run: |
-          set -euo pipefail
-          APP="$(find .theos -type d -name 'OpenNDILegacy.app' -print -quit)"
+          make clean package > packages/build.log 2>&1 || {
+            tail -n 100 packages/build.log
+            exit 1
+          }
+          APP="$(find .theos -type d -name OpenNDILegacy.app -print -quit)"
           test -n "$APP"
           bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
-          lipo -info "$APP/OpenNDILegacy" | tee -a packages/build-report.txt
-
-      - name: Upload build logs and artifacts
+          lipo -info "$APP/OpenNDILegacy"
+      - name: Upload IPA and logs (never upload SDK)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenNDI-ARMv7-Theos-experiment
-          path: |
-            packages/
+          name: OpenNDI-ARMv7-original-SDK
+          path: packages/
           if-no-files-found: warn
