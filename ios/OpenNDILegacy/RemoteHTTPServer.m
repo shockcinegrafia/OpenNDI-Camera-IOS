@@ -6,24 +6,36 @@
 #import <unistd.h>
 #import <fcntl.h>
 #import <errno.h>
+#import <string.h>
 @interface RemoteHTTPServer ()
 @property (nonatomic, strong) CameraFrameStore *store;
 @property (nonatomic, assign) int serverFD;
 @property (nonatomic, assign) BOOL running;
+@property (nonatomic, copy, readwrite) NSString *statusMessage;
+@property (nonatomic, assign, readwrite, getter=isListening) BOOL listening;
+@property (nonatomic, strong) dispatch_queue_t serverQueue;
 @end
 @implementation RemoteHTTPServer
 - (instancetype)initWithFrameStore:(CameraFrameStore *)store {
-    if ((self = [super init])) { _store = store; _serverFD = -1; _port = 8088; }
+    if ((self = [super init])) { _store = store; _serverFD = -1; _port = 8088; _statusMessage = @"Stopped"; _serverQueue = dispatch_queue_create("com.shockcinegrafia.legacy.http", DISPATCH_QUEUE_SERIAL); }
     return self;
 }
 - (void)start {
-    if (self.running) return;
-    self.running = YES;
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{ [self serve]; });
+    @synchronized(self) {
+        if (self.running) return;
+        self.running = YES;
+        self.listening = NO;
+        self.statusMessage = @"Starting HTTP server...";
+    }
+    dispatch_async(self.serverQueue, ^{ [self serve]; });
 }
 - (void)stop {
-    self.running = NO;
-    if (self.serverFD >= 0) { shutdown(self.serverFD, SHUT_RDWR); close(self.serverFD); self.serverFD = -1; }
+    @synchronized(self) {
+        self.running = NO;
+        self.listening = NO;
+        self.statusMessage = @"Stopped";
+        if (self.serverFD >= 0) shutdown(self.serverFD, SHUT_RDWR);
+    }
 }
 - (void)sendBytes:(NSData *)data fd:(int)fd {
     const uint8_t *ptr = data.bytes;
@@ -41,8 +53,11 @@
 }
 - (void)serve {
     int s = socket(AF_INET, SOCK_STREAM, 0);
-    if (s < 0) { self.running = NO; return; }
-    self.serverFD = s;
+    if (s < 0) {
+        @synchronized(self) { self.running = NO; self.statusMessage = [NSString stringWithFormat:@"socket: %s (%d)", strerror(errno), errno]; }
+        return;
+    }
+    @synchronized(self) { self.serverFD = s; }
     int yes = 1;
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
     struct sockaddr_in addr = {0};
@@ -50,9 +65,17 @@
     addr.sin_family = AF_INET;
     addr.sin_port = htons((uint16_t)self.port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) != 0 || listen(s, 8) != 0) {
-        close(s); self.serverFD = -1; self.running = NO; return;
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        int err = errno;
+        @synchronized(self) { self.running = NO; self.statusMessage = [NSString stringWithFormat:@"bind: %s (%d)", strerror(err), err]; self.serverFD = -1; }
+        close(s); return;
     }
+    if (listen(s, 8) != 0) {
+        int err = errno;
+        @synchronized(self) { self.running = NO; self.statusMessage = [NSString stringWithFormat:@"listen: %s (%d)", strerror(err), err]; self.serverFD = -1; }
+        close(s); return;
+    }
+    @synchronized(self) { self.listening = YES; self.statusMessage = @"Listening on port 8088"; }
     while (self.running) {
         int client = accept(s, NULL, NULL);
         if (client < 0) { if (!self.running) break; continue; }
@@ -87,5 +110,12 @@
         }
         close(client);
     }
+    @synchronized(self) {
+        if (self.serverFD == s) self.serverFD = -1;
+        self.listening = NO;
+        self.running = NO;
+        if ([self.statusMessage isEqualToString:@"Listening on port 8088"]) self.statusMessage = @"Stopped";
+    }
+    close(s);
 }
 @end
