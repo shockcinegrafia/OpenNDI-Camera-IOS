@@ -89,6 +89,8 @@
             NSArray *parts = [req componentsSeparatedByString:@" "];
             NSString *method = [parts count] > 0 ? parts[0] : @"";
             NSString *path = [parts count] > 1 ? parts[1] : @"";
+            // The web preview appends a cache-busting query to snapshot.jpg.
+            path = [[path componentsSeparatedByString:@"?"] firstObject];
             if (![method isEqualToString:@"GET"]) {
                 [self respond:client code:@"405 Method Not Allowed" type:@"text/plain" data:[@"GET only" dataUsingEncoding:NSUTF8StringEncoding]];
                 close(client);
@@ -99,7 +101,7 @@
                 if (jpeg) [self respond:client code:@"200 OK" type:@"image/jpeg" data:jpeg];
                 else [self respond:client code:@"503 Service Unavailable" type:@"text/plain" data:[@"Camera warming up" dataUsingEncoding:NSUTF8StringEncoding]];
             } else if ([path isEqualToString:@"/api/status"]) {
-                NSString *json = @"{\"app\":\"OpenNDI Camera Legacy\",\"version\":\"0.1.0\",\"webPreviewTargetFPS\":10,\"localPreviewDefault\":false,\"ndiImplemented\":false,\"remoteControlsImplemented\":false}";
+                NSString *json = @"{\"app\":\"OpenNDI Camera Legacy\",\"version\":\"0.1.1\",\"webPreviewTargetFPS\":10,\"localPreviewDefault\":false,\"ndiImplemented\":false,\"remoteControlsImplemented\":false}";
                 [self respond:client code:@"200 OK" type:@"application/json; charset=utf-8" data:[json dataUsingEncoding:NSUTF8StringEncoding]];
             } else if ([path isEqualToString:@"/"] || [path isEqualToString:@"/index.html"]) {
                 NSString *html = @"<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'><title>OpenNDI Legacy</title><style>body{background:#10151d;color:white;font:16px -apple-system,Arial;text-align:center;margin:20px}img{max-width:100%;background:black;border-radius:12px}</style></head><body><h2>OpenNDI Camera Legacy</h2><p>Web preview (target 10 FPS)</p><img id='v' alt='Camera preview'><p>Local-only development preview. NDI not yet available.</p><script>var v=document.getElementById('v');setInterval(function(){v.src='/snapshot.jpg?t='+Date.now()},100);</script></body></html>";
