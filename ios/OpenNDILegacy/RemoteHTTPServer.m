@@ -41,7 +41,7 @@
     const uint8_t *ptr = data.bytes;
     NSUInteger left = data.length;
     while (left > 0) {
-        ssize_t n = send(fd, ptr, left, 0);
+        ssize_t n = send(fd, ptr, left, MSG_NOSIGNAL);
         if (n <= 0) break;
         ptr += n; left -= (NSUInteger)n;
     }
@@ -50,6 +50,25 @@
     NSString *header = [NSString stringWithFormat:@"HTTP/1.1 %@\r\nContent-Type: %@\r\nContent-Length: %lu\r\nCache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n",code,type,(unsigned long)body.length];
     [self sendBytes:[header dataUsingEncoding:NSUTF8StringEncoding] fd:fd];
     [self sendBytes:body fd:fd];
+}
+- (NSData *)webPageNamed:(NSString *)name {
+    NSString *path = [[NSBundle mainBundle] pathForResource:name ofType:@"html"];
+    return path ? [NSData dataWithContentsOfFile:path] : nil;
+}
+- (void)streamMJPEG:(int)fd {
+    NSString *header = @"HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+    [self sendBytes:[header dataUsingEncoding:NSUTF8StringEncoding] fd:fd];
+    for (NSUInteger i = 0; i < 36000 && self.running; i++) {
+        NSData *jpeg = [self.store latestJPEG];
+        if (jpeg.length) {
+            NSString *part = [NSString stringWithFormat:@"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %lu\r\n\r\n", (unsigned long)jpeg.length];
+            NSData *prefix = [part dataUsingEncoding:NSUTF8StringEncoding];
+            if (send(fd, prefix.bytes, prefix.length, MSG_NOSIGNAL) <= 0) break;
+            if (send(fd, jpeg.bytes, jpeg.length, MSG_NOSIGNAL) <= 0) break;
+            if (send(fd, "\r\n", 2, MSG_NOSIGNAL) <= 0) break;
+        }
+        usleep(100000);
+    }
 }
 - (void)serve {
     int s = socket(AF_INET, SOCK_STREAM, 0);
@@ -96,16 +115,30 @@
                 close(client);
                 continue;
             }
-            if ([path isEqualToString:@"/snapshot.jpg"]) {
+            if ([path isEqualToString:@"/stream"] || [path isEqualToString:@"/stream_sd"]) {
+                // Stream on a separate queue so status and control requests are not blocked.
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    [self streamMJPEG:client];
+                    close(client);
+                });
+                continue;
+            } else if ([path isEqualToString:@"/state.json"]) {
+                NSString *json = @"{\\"platform\\":\\"ios-legacy\\",\\"version\\":\\"0.2.0\\",\\"streaming\\":true,\\"ndiEnabled\\":false,\\"fps\\":10,\\"cameraOn\\":true,\\"audioEnabled\\":false,\\"capabilities\\":{\\"ndi\\":false,\\"mjpeg\\":true,\\"remoteControls\\":false}}";
+                [self respond:client code:@"200 OK" type:@"application/json; charset=utf-8" data:[json dataUsingEncoding:NSUTF8StringEncoding]];
+            } else if ([path hasPrefix:@"/action/"]) {
+                [self respond:client code:@"501 Not Implemented" type:@"application/json" data:[@"{\\"ok\\":false,\\"error\\":\\"Control unavailable on iOS Legacy\\"}" dataUsingEncoding:NSUTF8StringEncoding]];
+            } else if ([path isEqualToString:@"/snapshot.jpg"]) {
                 NSData *jpeg = [self.store latestJPEG];
                 if (jpeg) [self respond:client code:@"200 OK" type:@"image/jpeg" data:jpeg];
                 else [self respond:client code:@"503 Service Unavailable" type:@"text/plain" data:[@"Camera warming up" dataUsingEncoding:NSUTF8StringEncoding]];
             } else if ([path isEqualToString:@"/api/status"]) {
                 NSString *json = @"{\"app\":\"OpenNDI Camera Legacy\",\"version\":\"0.1.1\",\"webPreviewTargetFPS\":10,\"localPreviewDefault\":false,\"ndiImplemented\":false,\"remoteControlsImplemented\":false}";
                 [self respond:client code:@"200 OK" type:@"application/json; charset=utf-8" data:[json dataUsingEncoding:NSUTF8StringEncoding]];
-            } else if ([path isEqualToString:@"/"] || [path isEqualToString:@"/index.html"]) {
-                NSString *html = @"<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'><title>OpenNDI Legacy</title><style>body{background:#10151d;color:white;font:16px -apple-system,Arial;text-align:center;margin:20px}img{max-width:100%;background:black;border-radius:12px}</style></head><body><h2>OpenNDI Camera Legacy</h2><p>Web preview (target 10 FPS)</p><img id='v' alt='Camera preview'><p>Local-only development preview. NDI not yet available.</p><script>var v=document.getElementById('v');setInterval(function(){v.src='/snapshot.jpg?t='+Date.now()},100);</script></body></html>";
-                [self respond:client code:@"200 OK" type:@"text/html; charset=utf-8" data:[html dataUsingEncoding:NSUTF8StringEncoding]];
+            } else if ([path isEqualToString:@"/"] || [path isEqualToString:@"/index.html"] || [path isEqualToString:@"/index_full.html"] || [path isEqualToString:@"/lite"] || [path isEqualToString:@"/index_lite.html"]) {
+                BOOL lite = [path isEqualToString:@"/lite"] || [path isEqualToString:@"/index_lite.html"];
+                NSData *html = [self webPageNamed:lite ? @"index_lite" : @"index_full"];
+                if (html) [self respond:client code:@"200 OK" type:@"text/html; charset=utf-8" data:html];
+                else [self respond:client code:@"503 Service Unavailable" type:@"text/plain" data:[@"Web resources not packaged" dataUsingEncoding:NSUTF8StringEncoding]];
             } else {
                 [self respond:client code:@"404 Not Found" type:@"text/plain" data:[@"Not found" dataUsingEncoding:NSUTF8StringEncoding]];
             }
