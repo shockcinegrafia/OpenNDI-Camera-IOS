@@ -2,6 +2,9 @@
 #import <AVFoundation/AVFoundation.h>
 #import "CameraFrameStore.h"
 #import "RemoteHTTPServer.h"
+#import <ifaddrs.h>
+#import <arpa/inet.h>
+#import <string.h>
 @interface CameraViewController ()
 @property (nonatomic, strong) AVCaptureSession *session;
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
@@ -10,12 +13,30 @@
 @property (nonatomic, strong) CameraFrameStore *frameStore;
 @property (nonatomic, strong) RemoteHTTPServer *webServer;
 @property (nonatomic, strong) dispatch_queue_t captureQueue;
+@property (nonatomic, strong) UILabel *networkLabel;
+@property (nonatomic, strong) UIButton *restartButton;
+@property (nonatomic, strong) NSTimer *networkTimer;
 @end
 @implementation CameraViewController
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor blackColor];
     self.previewEnabled = NO;
+    self.networkLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 185, self.view.bounds.size.width - 40, 110)];
+    self.networkLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    self.networkLabel.textColor = [UIColor whiteColor];
+    self.networkLabel.numberOfLines = 0;
+    self.networkLabel.textAlignment = NSTextAlignmentCenter;
+    self.networkLabel.font = [UIFont systemFontOfSize:15];
+    self.networkLabel.text = @"HTTP: initializing...";
+    [self.view addSubview:self.networkLabel];
+    self.restartButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.restartButton.frame = CGRectMake(30, 300, self.view.bounds.size.width - 60, 48);
+    self.restartButton.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    [self.restartButton setTitle:@"Restart HTTP server" forState:UIControlStateNormal];
+    [self.restartButton addTarget:self action:@selector(restartHTTP) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:self.restartButton];
+    self.networkTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(updateNetworkStatus) userInfo:nil repeats:YES];
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 55, self.view.bounds.size.width - 40, 45)];
     titleLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     titleLabel.text = @"OpenNDI Camera Legacy";
@@ -48,6 +69,7 @@
     errorLabel.textColor = [UIColor orangeColor];
     errorLabel.numberOfLines = 0;
     errorLabel.textAlignment = NSTextAlignmentCenter;
+    errorLabel.frame = CGRectMake(20, 360, self.view.bounds.size.width - 40, 100);
     errorLabel.text = message;
     [self.view addSubview:errorLabel];
 }
@@ -77,9 +99,35 @@
     }
     self.webServer = [[RemoteHTTPServer alloc] initWithFrameStore:self.frameStore];
     [self.webServer start];
+    [self updateNetworkStatus];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [self.session startRunning];
     });
+}
+- (NSString *)wifiAddress {
+    struct ifaddrs *interfaces = NULL;
+    NSString *address = @"Wi-Fi IP unavailable";
+    if (getifaddrs(&interfaces) == 0) {
+        for (struct ifaddrs *item = interfaces; item; item = item->ifa_next) {
+            if (!item->ifa_addr || item->ifa_addr->sa_family != AF_INET || strcmp(item->ifa_name, "en0") != 0) continue;
+            char ip[INET_ADDRSTRLEN];
+            struct sockaddr_in *sin = (struct sockaddr_in *)item->ifa_addr;
+            if (inet_ntop(AF_INET, &sin->sin_addr, ip, sizeof(ip))) address = [NSString stringWithUTF8String:ip];
+            break;
+        }
+        freeifaddrs(interfaces);
+    }
+    return address;
+}
+- (void)updateNetworkStatus {
+    NSString *ip = [self wifiAddress];
+    NSString *status = self.webServer ? self.webServer.statusMessage : @"Camera initializing...";
+    self.networkLabel.text = [NSString stringWithFormat:@"HTTP: %@\nhttp://%@:8088/api/status\n%@", self.webServer.isListening ? @"ONLINE" : @"OFFLINE", ip, status ?: @"Unknown"];
+}
+- (void)restartHTTP {
+    [self.webServer stop];
+    [self.webServer start];
+    [self updateNetworkStatus];
 }
 - (void)togglePreview {
     self.previewEnabled = !self.previewEnabled;
