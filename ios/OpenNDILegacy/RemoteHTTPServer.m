@@ -123,10 +123,10 @@
                 });
                 continue;
             } else if ([path isEqualToString:@"/state.json"]) {
-                NSString *json = @"{\\"platform\\":\\"ios-legacy\\",\\"version\\":\\"0.2.0\\",\\"streaming\\":true,\\"ndiEnabled\\":false,\\"fps\\":10,\\"cameraOn\\":true,\\"audioEnabled\\":false,\\"capabilities\\":{\\"ndi\\":false,\\"mjpeg\\":true,\\"remoteControls\\":false}}";
+                NSString *json = @"{\"platform\":\"ios-legacy\",\"version\":\"0.2.0\",\"streaming\":true,\"ndiEnabled\":false,\"fps\":10,\"cameraOn\":true,\"audioEnabled\":false,\"capabilities\":{\"ndi\":false,\"mjpeg\":true,\"remoteControls\":false}}";
                 [self respond:client code:@"200 OK" type:@"application/json; charset=utf-8" data:[json dataUsingEncoding:NSUTF8StringEncoding]];
             } else if ([path hasPrefix:@"/action/"]) {
-                [self respond:client code:@"501 Not Implemented" type:@"application/json" data:[@"{\\"ok\\":false,\\"error\\":\\"Control unavailable on iOS Legacy\\"}" dataUsingEncoding:NSUTF8StringEncoding]];
+                [self respond:client code:@"501 Not Implemented" type:@"application/json" data:[@"{\"ok\":false,\"error\":\"Control unavailable on iOS Legacy\"}" dataUsingEncoding:NSUTF8StringEncoding]];
             } else if ([path isEqualToString:@"/snapshot.jpg"]) {
                 NSData *jpeg = [self.store latestJPEG];
                 if (jpeg) [self respond:client code:@"200 OK" type:@"image/jpeg" data:jpeg];
