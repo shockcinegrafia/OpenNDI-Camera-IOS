@@ -41,7 +41,7 @@
     const uint8_t *ptr = data.bytes;
     NSUInteger left = data.length;
     while (left > 0) {
-        ssize_t n = send(fd, ptr, left, MSG_NOSIGNAL);
+        ssize_t n = send(fd, ptr, left, 0);
         if (n <= 0) break;
         ptr += n; left -= (NSUInteger)n;
     }
@@ -63,9 +63,9 @@
         if (jpeg.length) {
             NSString *part = [NSString stringWithFormat:@"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %lu\r\n\r\n", (unsigned long)jpeg.length];
             NSData *prefix = [part dataUsingEncoding:NSUTF8StringEncoding];
-            if (send(fd, prefix.bytes, prefix.length, MSG_NOSIGNAL) <= 0) break;
-            if (send(fd, jpeg.bytes, jpeg.length, MSG_NOSIGNAL) <= 0) break;
-            if (send(fd, "\r\n", 2, MSG_NOSIGNAL) <= 0) break;
+            if (send(fd, prefix.bytes, prefix.length, 0) <= 0) break;
+            if (send(fd, jpeg.bytes, jpeg.length, 0) <= 0) break;
+            if (send(fd, "\r\n", 2, 0) <= 0) break;
         }
         usleep(100000);
     }
@@ -98,7 +98,7 @@
     while (self.running) {
         int client = accept(s, NULL, NULL);
         if (client < 0) { if (!self.running) break; continue; }
-        struct timeval timeout = {2, 0};
+        int noSigPipe = 1;\n        setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));\n        struct timeval timeout = {2, 0};
         setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
         setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         char buffer[2048] = {0};
