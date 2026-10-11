@@ -1,6 +1,12 @@
 name: ARMv7 iOS 9 Theos SDK experiment
 on:
   workflow_dispatch:
+    inputs:
+      allow_paid_macos:
+        description: 'Explicitly authorize paid macOS build (requires private SDK integration)'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +44,7 @@ jobs:
               raise SystemExit("SDK incomplete for modern linker; stopping before paid macOS job")
           PY
   armv7:
+    if: ${{ inputs.allow_paid_macos == true && vars.PRIVATE_IOS9_SDK_READY == 'true' }}
     needs: sdk-preflight
     runs-on: macos-15
     timeout-minutes: 45
