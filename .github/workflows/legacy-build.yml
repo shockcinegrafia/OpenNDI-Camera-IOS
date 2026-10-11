@@ -1,12 +1,6 @@
 name: ARMv7 iOS 9 Theos SDK experiment
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/legacy-build.yml'
-      - 'Makefile'
-      - 'ios/**'
-      - 'scripts/package-ipa.sh'
 
 permissions:
   contents: read
