@@ -98,10 +98,19 @@ jobs:
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
           echo "$THEOS/bin" >> "$GITHUB_PATH"
           echo "Original private iPhoneOS9.3 SDK installed"
+      - name: Install and verify Theos signing tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install ldid
+          command -v ldid
+          ldid -h || true
+
       - name: Build ARMv7 application
         shell: bash
         run: |
           set -euo pipefail
+          command -v ldid
           mkdir -p packages
           make clean package > packages/build.log 2>&1 || {
             tail -n 100 packages/build.log
