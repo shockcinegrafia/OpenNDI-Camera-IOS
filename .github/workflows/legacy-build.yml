@@ -6,7 +6,39 @@ permissions:
   contents: read
 
 jobs:
+  sdk-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect Theos SDK dependencies without macOS minutes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git sdk-repo
+          cd sdk-repo
+          git sparse-checkout set iPhoneOS9.3.sdk
+          SDK=iPhoneOS9.3.sdk
+          test -f "$SDK/usr/lib/libSystem.B.tbd"
+          echo "Checking iOS 9.3 libSystem reexports for ARMv7..."
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          sdk = Path("iPhoneOS9.3.sdk")
+          stub = (sdk / "usr/lib/libSystem.B.tbd").read_text()
+          match = re.search(r"reexported-libraries:\\s*\\[([^]]+)\\]", stub, re.S)
+          if not match:
+              raise SystemExit("Cannot verify libSystem reexports: unexpected stub format")
+          missing = []
+          for lib in re.findall(r"/usr/lib/[^,\\s\\]]+\\.dylib", match.group(1)):
+              path = sdk / lib.lstrip("/")
+              if not (path.exists() or path.with_suffix(".tbd").exists()):
+                  missing.append(lib)
+          print("Missing reexported libraries:", missing)
+          if missing:
+              raise SystemExit("SDK incomplete for modern linker; stopping before paid macOS job")
+          PY
   armv7:
+    needs: sdk-preflight
     runs-on: macos-15
     timeout-minutes: 45
     steps:
