@@ -106,6 +106,23 @@ jobs:
           command -v ldid
           ldid -h || true
 
+      - name: Unpack shared Android web interfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          archive = Path("OpenNDI-iOS-Full-Web-Source.zip")
+          assert archive.is_file(), "Missing full-web source archive"
+          with zipfile.ZipFile(archive) as z:
+              for name in ("index_full.html", "index_lite.html"):
+                  suffix = "ios/OpenNDILegacy/" + name
+                  matches = [p for p in z.namelist() if p.endswith(suffix)]
+                  assert len(matches) == 1, f"Expected one {suffix}, found {matches}"
+                  Path(suffix).write_bytes(z.read(matches[0]))
+                  assert Path(suffix).stat().st_size > 1000
+          PY
       - name: Build ARMv7 application
         shell: bash
         run: |
