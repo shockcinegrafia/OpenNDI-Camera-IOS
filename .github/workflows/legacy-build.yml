@@ -38,6 +38,33 @@ jobs:
           test -d "$SDK/System/Library/Frameworks/Foundation.framework" || { echo "::error::Foundation.framework missing from SDK"; exit 1; }
           test -d "$SDK/System/Library/Frameworks/AVFoundation.framework" || { echo "::error::AVFoundation.framework missing from SDK"; exit 1; }
 
+      - name: Diagnose SDK target platforms and liblaunch dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages
+          SDK="$THEOS/sdks/$SDK_FOUND"
+          {
+            echo "SDK path: $SDK"
+            echo "SDK realpath: $(cd "$SDK" && pwd -P)"
+            echo "SDK root libSystem:"
+            ls -l "$SDK/usr/lib/libSystem.tbd" || true
+            echo "SDK liblaunch candidates:"
+            find "$SDK" -iname '*liblaunch*' -print || true
+            echo "SDK stub platform metadata:"
+            for stub in "$SDK/usr/lib/libSystem.tbd" "$SDK/usr/lib/libobjc.tbd" "$SDK/System/Library/Frameworks/Foundation.framework/Foundation.tbd"; do
+              echo "----- $stub -----"
+              if [ -f "$stub" ]; then
+                grep -nE '^(archs|targets|platform|install-name|reexported-libraries):|liblaunch' "$stub" | head -n 55 || true
+              else
+                echo "Missing"
+              fi
+            done
+            echo "Clang and linker:"
+            xcrun --find clang
+            xcrun --find ld
+          } | tee packages/sdk-linker-diagnostic.txt
+
       - name: Build ARMv7 application
         shell: bash
         run: |
