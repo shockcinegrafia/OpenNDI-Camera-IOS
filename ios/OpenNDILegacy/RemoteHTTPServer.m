@@ -98,7 +98,9 @@
     while (self.running) {
         int client = accept(s, NULL, NULL);
         if (client < 0) { if (!self.running) break; continue; }
-        int noSigPipe = 1;\n        setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));\n        struct timeval timeout = {2, 0};
+        int noSigPipe = 1;
+        setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));
+        struct timeval timeout = {2, 0};
         setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
         setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         char buffer[2048] = {0};
