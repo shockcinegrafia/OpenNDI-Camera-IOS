@@ -64,6 +64,8 @@ jobs:
                       sys.exit("liblaunch reference found: " + name)
               print("Original iPhoneOS SDK validated on Linux; no paid macOS job required")
           PY
+          # Also validate actual extraction, including 47 Unix symlinks.
+          python3 scripts/extract-ios-sdk.py "$RUNNER_TEMP/sdk-private.zip" "$RUNNER_TEMP/sdk-extraction-test"
       - name: Confirm private SDK preflight
         run: echo "Private iOS 9 SDK passed Linux ZIP and stub checks" >> "$GITHUB_STEP_SUMMARY"
 
@@ -89,16 +91,8 @@ jobs:
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$RUNNER_TEMP/theos"
           export THEOS="$RUNNER_TEMP/theos"
           mkdir -p "$THEOS/sdks" "$RUNNER_TEMP/sdk-unpacked"
-          python3 - "$RUNNER_TEMP/sdk-private.zip" "$RUNNER_TEMP/sdk-unpacked" <<'PY'
-          import pathlib, sys, zipfile
-          target = pathlib.Path(sys.argv[2]).resolve()
-          with zipfile.ZipFile(sys.argv[1]) as z:
-              for info in z.infolist():
-                  name = pathlib.PurePosixPath(info.filename)
-                  if name.is_absolute() or ".." in name.parts:
-                      sys.exit("Unsafe SDK ZIP path")
-              z.extractall(target)
-          PY
+          # Do not use ZipFile.extractall(): it turns SDK symlinks into invalid C headers.
+          python3 scripts/extract-ios-sdk.py "$RUNNER_TEMP/sdk-private.zip" "$RUNNER_TEMP/sdk-unpacked"
           test -f "$RUNNER_TEMP/sdk-unpacked/iPhoneOS.sdk/usr/lib/libSystem.B.tbd"
           ln -s "$RUNNER_TEMP/sdk-unpacked/iPhoneOS.sdk" "$THEOS/sdks/iPhoneOS9.3.sdk"
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
