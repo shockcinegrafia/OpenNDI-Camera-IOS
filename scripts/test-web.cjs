@@ -15,6 +15,7 @@ for(const name of ['index_full','index_lite']) {
  assert(!requests.some(url=>/webrtc|live|layer|discovered/.test(url)),'No unsupported polling');
  const root=w.document.getElementById('camCard_0')||w.document.body;
  assert(root.textContent.includes('iOS Legacy 0.3.0'));
+ if(name==='index_lite') { assert(w.document.getElementById('statusAud').textContent==='INDISPONÍVEL'); assert(w.document.getElementById('statusZoom').textContent==='1.0x'); }
  const torch=Array.from(root.querySelectorAll('button')).find(n=>(n.getAttribute('onclick')||'').includes('toggle_torch'));
  assert(torch.disabled,'Unsupported torch disabled');
  const dark=w.document.getElementById('legacyDark_0');assert(!dark.disabled);dark.click();assert(requests.some(url=>url.includes('type=toggle_dark_screen')));

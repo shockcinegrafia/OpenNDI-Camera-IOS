@@ -88,6 +88,7 @@
     NSString *target = line[1];
     if (![target hasPrefix:@"/"]) { [self json:@{@"error":@"Invalid target"} fd:fd code:@"400 Bad Request"]; return; }
     NSURLComponents *url = [NSURLComponents componentsWithString:[@"http://localhost" stringByAppendingString:target]];
+    if (!url || !url.path) { [self json:@{@"error":@"Invalid target"} fd:fd code:@"400 Bad Request"]; return; }
     NSString *path = url.path;
     NSMutableDictionary *query = [NSMutableDictionary dictionary];
     for (NSURLQueryItem *item in url.queryItems) if (item.name && item.value) query[item.name] = item.value;

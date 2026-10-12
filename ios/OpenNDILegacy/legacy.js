@@ -91,6 +91,9 @@
             for (var id in labels) { var label=document.getElementById(id); if(label) label.textContent=labels[id]; }
         } else {
             currentZoom=state.currentZoom;
+            var audioStatus=document.getElementById('statusAud'); if(audioStatus) audioStatus.textContent='INDISPONÍVEL';
+            var zoomStatus=document.getElementById('statusZoom'); if(zoomStatus) zoomStatus.textContent=Number(state.currentZoom).toFixed(1)+'x';
+            var streamStatus=document.getElementById('statusRec'); if(streamStatus) streamStatus.textContent=state.streaming ? 'MJPEG AO VIVO' : 'SEM VÍDEO';
             var torch=document.getElementById('btnTorch'); if(torch) torch.textContent=cap.torch ? (state.isTorchEnabled ? 'Flash: ON' : 'Flash: OFF') : 'Flash indisponível';
             var mic=document.getElementById('btnMicToggle'); if(mic) mic.textContent='Áudio indisponível';
         }
