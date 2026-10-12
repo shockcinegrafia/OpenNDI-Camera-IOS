@@ -1,14 +1,9 @@
 # OpenNDI Camera Legacy
 
-Native iOS 9 / ARMv7 camera app for iPad mini 1 (jailbroken).
+Aplicativo nativo Objective-C para iOS 9 / ARMv7. Desenvolvimento v0.3.0 em branch separada; histórico v0.1.1 preservado.
 
-## v0.1 development baseline
-- Native AVFoundation capture (Objective-C)
-- Local preview disabled in Remote Camera mode
-- Web MJPEG preview target: 10 FPS
-- NDI transmission target: 30 FPS (not yet implemented; SDK compatibility/licensing pending)
-- Local HTTP controls and dark-screen mode planned
+Interface Android Full principal, Lite alternativa, controle AVFoundation por capacidades, MJPEG e snapshot. NDI e áudio não implementados.
 
-**Status:** Initial source scaffold only. No compiled IPA or functional NDI sender yet. NDI binaries from third-party apps are not redistributed.
+Veja [auditoria e verificação v0.3.0](docs/V0.3.0.md) e [build iOS 9](docs/BUILD-IOS9.md).
 
-Build requirements: compatible legacy iOS SDK, ARMv7 toolchain and signing/installation path for iOS 9. Modern Xcode alone may not support ARMv7.
+Teste web: instalar as dependências de desenvolvimento de package.json e executar `node scripts/test-web.cjs`.

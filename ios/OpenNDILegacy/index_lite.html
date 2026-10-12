@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>OpenNDI Lite - Controle Remoto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <style type="text/css">
+        /* Reset & Base - Minimalista, ultra leve e 100% Compatível com iOS 5+ / iPad Mini 1 */
+        * {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #0F1115;
+            color: #FFFFFF;
+            font-family: Helvetica, Arial, -apple-system, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            padding: 4px;
+            text-align: center;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* Top Bar - Ultra Compact */
+        .top-bar {
+            background-color: #161A20;
+            border: 1px solid #242B35;
+            border-radius: 6px;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            text-align: left;
+            overflow: hidden;
+        }
+        .top-bar-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #00E676;
+            float: left;
+            letter-spacing: 0.5px;
+        }
+        .top-bar-badge {
+            background-color: #242B35;
+            color: #4FC3F7;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            float: right;
+        }
+        .clear-fix {
+            clear: both;
+        }
+
+        /* Host IP Switcher Bar - Compact */
+        .host-bar {
+            background-color: #12151A;
+            border: 1px solid #202630;
+            border-radius: 5px;
+            padding: 3px 6px;
+            margin-bottom: 4px;
+            text-align: left;
+            overflow: hidden;
+            font-size: 10px;
+        }
+        .host-bar label {
+            color: #8A93A6;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 3px;
+        }
+        .host-input {
+            background-color: #1C222B;
+            border: 1px solid #2E3746;
+            color: #FFFFFF;
+            padding: 2px 5px;
+            font-size: 11px;
+            border-radius: 3px;
+            width: 120px;
+            font-family: monospace;
+            -webkit-appearance: none;
+        }
+        .btn-host {
+            background-color: #4FC3F7;
+            color: #000000;
+            border: none;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 3px;
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+        .btn-host-reset {
+            background-color: #242B35;
+            color: #FFFFFF;
+            border: 1px solid #364150;
+            padding: 3px 6px;
+            font-size: 9px;
+            border-radius: 3px;
+            cursor: pointer;
+            float: right;
+            -webkit-appearance: none;
+        }
+
+        /* Status Strip - Sleek HUD */
+        .status-strip {
+            background-color: #12151A;
+            border: 1px solid #202630;
+            border-radius: 5px;
+            padding: 3px 6px;
+            margin-bottom: 4px;
+            font-size: 10px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .status-item {
+            display: inline-block;
+            margin: 0 3px;
+        }
+        .status-label {
+            color: #7A8496;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+        .status-val {
+            font-weight: bold;
+            color: #FFFFFF;
+        }
+        .val-rec {
+            color: #FF5252;
+            font-weight: bold;
+        }
+        .val-ok {
+            color: #00E676;
+        }
+
+        /* Viewport Container & Touch Focus Target */
+        .video-box {
+            position: relative;
+            background-color: #000000;
+            border: 1px solid #242B35;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 4px;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+            cursor: crosshair;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .video-box img {
+            width: 100%;
+            height: auto;
+            max-height: 320px;
+            display: block;
+            margin: 0 auto;
+            background-color: #000000;
+            pointer-events: none;
+        }
+        .rec-indicator {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background-color: rgba(229, 57, 53, 0.9);
+            color: #FFFFFF;
+            font-size: 9px;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: none;
+            pointer-events: none;
+        }
+        /* Visual Focus Ring on Tap */
+        .focus-ring {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border: 2px solid #FFD54F;
+            border-radius: 50%;
+            margin-left: -18px;
+            margin-top: -18px;
+            pointer-events: none;
+            display: none;
+            background: rgba(255, 213, 79, 0.2);
+        }
+
+        /* Primary Action Buttons - Compact 50/50 Grid */
+        .main-actions {
+            margin-bottom: 4px;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: hidden;
+        }
+        .btn-record {
+            background-color: #E53935;
+            color: #FFFFFF;
+        }
+        .btn-record.is-recording {
+            background-color: #B71C1C;
+            border: 1px solid #FF5252;
+        }
+        .btn-snap {
+            background-color: #1E88E5;
+            color: #FFFFFF;
+        }
+
+        /* Button Grid */
+        .grid-row {
+            margin-left: -2px;
+            margin-right: -2px;
+            margin-bottom: 3px;
+            overflow: hidden;
+        }
+        .grid-col-2 {
+            width: 50%;
+            float: left;
+            padding: 0 2px;
+        }
+        .grid-col-3 {
+            width: 33.333%;
+            float: left;
+            padding: 0 2px;
+        }
+        .grid-col-4 {
+            width: 25%;
+            float: left;
+            padding: 0 2px;
+        }
+
+        .btn-tool {
+            display: block;
+            width: 100%;
+            min-height: 28px;
+            background-color: #1E242D;
+            color: #FFFFFF;
+            border: 1px solid #2F3846;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 5px 2px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            -webkit-appearance: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .btn-tool:active {
+            background-color: #4FC3F7;
+            color: #000000;
+        }
+        .btn-tool.active {
+            background-color: #00E676;
+            color: #000000;
+            border-color: #00E676;
+        }
+        .btn-tool.warn {
+            background-color: #FFB300;
+            color: #000000;
+        }
+        .btn-tool.danger {
+            background-color: #E53935;
+            color: #FFFFFF;
+        }
+
+        /* Cards & Sections - Minimalist & Compact */
+        .panel-card {
+            background-color: #15181E;
+            border: 1px solid #222832;
+            border-radius: 6px;
+            padding: 5px 6px;
+            margin-bottom: 4px;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+        .panel-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #7A8496;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            letter-spacing: 0.3px;
+        }
+
+        /* Gallery List */
+        .gallery-box {
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #242B35;
+            border-radius: 4px;
+            background: #0F1115;
+            padding: 3px;
+            margin-top: 4px;
+        }
+        .media-row {
+            border-bottom: 1px solid #1E242D;
+            padding: 4px 2px;
+            overflow: hidden;
+            font-size: 10px;
+        }
+        .media-title {
+            font-weight: bold;
+            color: #FFF;
+            float: left;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .media-actions {
+            float: right;
+        }
+        .media-link {
+            background: #242B35;
+            color: #4FC3F7;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-decoration: none;
+            font-size: 9px;
+            margin-left: 3px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .media-del {
+            background: #3A1515;
+            color: #FF5252;
+            padding: 2px 5px;
+            border-radius: 3px;
+            border: none;
+            font-size: 9px;
+            margin-left: 3px;
+            font-weight: bold;
+            cursor: pointer;
+            -webkit-appearance: none;
+        }
+
+        /* Mode Selector */
+        .mode-switch {
+            text-align: center;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #202630;
+        }
+        .mode-link {
+            display: inline-block;
+            color: #4FC3F7;
+            font-size: 11px;
+            text-decoration: underline;
+            padding: 2px 6px;
+        }
+        .info-note {
+            color: #606A7C;
+            font-size: 9px;
+            margin-top: 2px;
+        }
+    </style>
+<style>.cameras-grid{display:flex;flex-wrap:wrap}.camera-node{flex:1 1 420px;margin:6px}.controls-container{display:flex;flex-wrap:wrap}.controls-container .card{flex:1 1 190px;margin:3px}.video-wrapper{min-height:240px}.video-wrapper img{width:100%;height:auto}button:disabled,input:disabled,select:disabled{opacity:.4;cursor:default}.legacy-panel{padding:8px;text-align:left;background:#151922;border-radius:6px;margin:6px}.legacy-panel select{max-width:130px}button,select{margin:2px}</style></head>
+<body>
+
+    <!-- Header -->
+    <div class="top-bar">
+        <div class="top-bar-title">&#9679; OPENNDI LITE</div>
+        <div class="top-bar-badge" id="badgeConn">CONECTADO</div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Dynamic Host IP Switcher -->
+    <div class="host-bar">
+        <label for="inputHost">Host:</label>
+        <input type="text" id="inputHost" class="host-input" placeholder="IP:Porta (ex: 192.168.1.15:8080)" />
+        <button type="button" class="btn-host" onclick="applyCustomHost()">Trocar</button>
+        <button type="button" class="btn-host-reset" onclick="resetHost()">Host Atual</button>
+    </div>
+
+    <!-- Status Strip -->
+    <div class="status-strip">
+        <div class="status-item">
+            <span class="status-label">Status:</span>
+            <span class="status-val val-ok" id="statusRec">PRONTO</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Bateria:</span>
+            <span class="status-val" id="statusBat">--%</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Áudio:</span>
+            <span class="status-val" id="statusAud">LIGADO</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Zoom:</span>
+            <span class="status-val" id="statusZoom">1.0x</span>
+        </div>
+    </div>
+
+    <!-- Viewfinder with Touch-To-Focus (Notice removed) -->
+    <div class="video-box" id="videoBox" onclick="handleVideoTap(event)">
+        <div class="rec-indicator" id="recBadge">&#9679; GRAVANDO NDI</div>
+        <div class="focus-ring" id="focusRing"></div>
+        <img id="streamImg" src="/stream_sd" alt="Vídeo ao vivo" onerror="handleStreamError()" />
+    </div>
+
+    <!-- Controles Principais de Transmissão (Compact 50/50 Grid) -->
+    <div class="main-actions">
+        <div class="grid-row">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool btn-record" id="btnRec" style="min-height: 34px; font-size: 12px;" onclick="toggleRecord()">&#9679; GRAVAR / STREAM</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool btn-snap" id="btnSnap" style="min-height: 34px; font-size: 12px;" onclick="takeSnapshot()">&#128247; FOTO (SNAPSHOT)</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Seleção de Fonte de Vídeo e Economia de Dados -->
+    <div class="panel-card">
+        <div class="panel-title">Transmissão &amp; Fontes de Vídeo</div>
+        <div class="grid-row">
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool active" id="btnSrcSd" onclick="setVideoSource('sd')">Fluxo SD</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnSrcHd" onclick="setVideoSource('hd')">Fluxo HD</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnSrcPoll" onclick="setVideoSource('poll')">1 FPS</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Controle de Áudio -->
+    <div class="panel-card">
+        <div class="panel-title">Controle de Áudio &amp; Microfone</div>
+        <div class="grid-row">
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool active" id="btnMicToggle" onclick="sendCommand('toggle_audio')">Mic: Ativo</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="sendCommand('mute_audio')">Mutar</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="sendCommand('unmute_audio')">Desmutar</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Controle de Zoom Óptico / Digital -->
+    <div class="panel-card">
+        <div class="panel-title">Controle de Zoom</div>
+        <div class="grid-row">
+            <div class="grid-col-4">
+                <button type="button" class="btn-tool" id="z1" onclick="setZoom(1.0)">1.0x</button>
+            </div>
+            <div class="grid-col-4">
+                <button type="button" class="btn-tool" id="z2" onclick="setZoom(2.0)">2.0x</button>
+            </div>
+            <div class="grid-col-4">
+                <button type="button" class="btn-tool" id="z3" onclick="setZoom(3.0)">3.0x</button>
+            </div>
+            <div class="grid-col-4">
+                <button type="button" class="btn-tool" id="z5" onclick="setZoom(5.0)">5.0x</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+        <div class="grid-row">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" onclick="adjustZoom(-0.5)">- Zoom</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" onclick="adjustZoom(0.5)">+ Zoom</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Transmissão Ao Vivo (Live Streaming) -->
+    <div class="panel-card" style="border-color: #D32F2F;">
+        <div class="panel-title" style="color: #FF5252;">&#128308; Live RTMP (YouTube, Insta)</div>
+        <div style="margin-bottom: 4px; font-size: 10px; color: #9E9E9E;">
+            Status: <span id="liteLiveStatus" style="font-weight:bold; color:#00E676;">OFFLINE</span> &bull; 
+            Tempo: <span id="liteLiveTimer" style="font-weight:bold;">00:00</span> &bull; 
+            Bitrate: <span id="liteLiveBitrate">0 kbps</span>
+        </div>
+        <div class="grid-row">
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="setLiteLivePreset('youtube')">YouTube</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="setLiteLivePreset('instagram')">Instagram</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="setLiteLivePreset('custom')">Custom</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+        <div style="text-align: left; margin: 3px 0;">
+            <input type="text" id="liteStreamKey" placeholder="Stream Key..." style="background: #1C222B; border: 1px solid #2E3746; color: #fff; padding: 4px 6px; width: 100%; border-radius: 3px; font-size: 11px; font-family: monospace;">
+        </div>
+        <div style="text-align: left; margin: 3px 0;">
+            <select id="liteLiveCamSelect" onchange="switchLiteLiveCam(this.value)" style="background: #1C222B; border: 1px solid #2E3746; color: #fff; padding: 4px 6px; width: 100%; border-radius: 3px; font-size: 11px;">
+                <option value="host">Host Principal (Android)</option>
+            </select>
+        </div>
+        <div class="grid-row" style="margin-top: 4px;">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteStartLive" style="background: #D32F2F; color: #fff; font-weight: bold;" onclick="startLiteLive()">&#9654; Iniciar</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteStopLive" style="background: #242B35; color: #fff;" onclick="stopLiteLive()">&#9632; Parar</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Controle de Camadas e Overlays (Layers) durante Gravação ou Stream -->
+    <div class="panel-card" style="border-color: #0288D1;">
+        <div class="panel-title" style="color: #4FC3F7;">&#9638; Camadas &amp; Overlays (Layers)</div>
+        <div style="margin-bottom: 4px; font-size: 10px; color: #aaa;">
+            Layout: <span id="liteActiveLayout" style="font-weight: bold; color: #4FC3F7;">Câmera Única</span>
+        </div>
+        
+        <!-- Seleção de Layout / Picture-in-Picture -->
+        <div class="grid-row">
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnLayoutSingle" onclick="setLiteLayout('single')">Cheia</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnLayoutPipBr" onclick="setLiteLayout('pip_bottom_right')">PiP &#8600;</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnLayoutPipTr" onclick="setLiteLayout('pip_top_right')">PiP &#8599;</button>
+            </div>
+        </div>
+        <div class="grid-row">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLayoutSplitH" onclick="setLiteLayout('split_horizontal')">Split Lado a Lado</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLayoutSplitV" onclick="setLiteLayout('split_vertical')">Split Vertical</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+
+        <!-- Overlays Gráficos -->
+        <div class="grid-row" style="margin-top: 4px; border-top: 1px solid #202630; padding-top: 4px;">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteLowerThird" onclick="toggleLiteLowerThird()">Lower Third (GC)</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteTimestamp" onclick="toggleLiteOverlay('timestamp')">Relógio ⏱</button>
+            </div>
+        </div>
+        <div class="grid-row">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteVuMeter" onclick="toggleLiteOverlay('vumeter')">VU Áudio &#128202;</button>
+            </div>
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnLiteTally" onclick="toggleLiteOverlay('tally')">Tally 🔴</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+
+        <!-- Personalização de Texto do Lower Third -->
+        <div style="text-align: left; margin: 3px 0;">
+            <input type="text" id="liteLtTitle" value="OpenNDI Studio" placeholder="Título GC" style="background: #1C222B; border: 1px solid #2E3746; color: #fff; padding: 3px 5px; width: 100%; border-radius: 3px; font-size: 10px; margin-bottom: 3px;">
+            <input type="text" id="liteLtSubtitle" value="Transmissão Ao Vivo" placeholder="Subtítulo GC" style="background: #1C222B; border: 1px solid #2E3746; color: #fff; padding: 3px 5px; width: 100%; border-radius: 3px; font-size: 10px;">
+            <div style="margin-top: 3px; text-align: right;">
+                <button type="button" class="btn-tool" style="width: auto; padding: 3px 8px; background: #00E676; color: #000; font-weight: bold; font-size: 10px; display: inline-block;" onclick="saveLiteLowerThird()">Salvar GC</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ajustes da Câmera -->
+    <div class="panel-card">
+        <div class="panel-title">Ajustes da Câmera</div>
+        <div class="grid-row">
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnTorch" onclick="sendCommand('toggle_torch')">Flash: OFF</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" onclick="sendCommand('toggle_camera')">Trocar Câmera</button>
+            </div>
+            <div class="grid-col-3">
+                <button type="button" class="btn-tool" id="btnLock" onclick="sendCommand('toggle_lock')">Travar AE/AF</button>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+    </div>
+
+    <!-- Acesso à Galeria -->
+    <div class="panel-card">
+        <div class="panel-title">Galeria de Mídia</div>
+        <div class="grid-row">
+            <div class="grid-col-2">
+                <button type="button" class="btn-tool" id="btnToggleGal" onclick="toggleGalleryView()">&#128193; Ver Mídias</button>
+            </div>
+            <div class="grid-col-2">
+                <a href="/gallery" id="linkFullGal" class="btn-tool">&#128065; Galeria Completa</a>
+            </div>
+        </div>
+        <div class="clear-fix"></div>
+
+        <!-- Lista de arquivos da Galeria -->
+        <div class="gallery-box" id="galleryBox">
+            <div id="galleryItems">Carregando mídias...</div>
+        </div>
+    </div>
+
+    <!-- Links de Navegação e Rodapé -->
+    <div class="mode-switch">
+        <a href="/index.html?mode=full" class="mode-link">&#9881; Painel Completo Studio</a>
+        <div class="info-note">Modo Lite &bull; iOS 5+ / iPad Mini 1st Gen</div>
+    </div>
+
+    <!-- Vanilla ES5 Pure JavaScript (Zero dependências, compatível com iOS 5+) -->
+    <script type="text/javascript">
+        // Estado local em ES5
+        var currentHost = "";
+        var isTransmitting = false;
+        var currentZoom = 1.0;
+        var videoSource = 'sd';
+        var pollTimer = null;
+        var stateTimer = null;
+        var galleryOpen = false;
+
+        // Inicializa Host IP
+        function initHost() {
+            var savedHost = localStorage ? localStorage.getItem('openni_custom_host') : null;
+            if (savedHost) {
+                currentHost = savedHost;
+            } else {
+                currentHost = window.location.host;
+            }
+            var input = document.getElementById('inputHost');
+            if (input) input.value = currentHost;
+            updateLinks();
+        }
+
+        function getBaseUrl() {
+            if (currentHost && currentHost !== window.location.host) {
+                return 'http://' + currentHost;
+            }
+            return '';
+        }
+
+        function applyCustomHost() {
+            var input = document.getElementById('inputHost');
+            if (input && input.value) {
+                var h = input.value.replace(/^http:\/\//i, '').replace(/\/+$/, '');
+                currentHost = h;
+                if (localStorage) localStorage.setItem('openni_custom_host', currentHost);
+                updateLinks();
+                setVideoSource(videoSource);
+                updateState();
+                if (galleryOpen) loadGalleryMedia();
+            }
+        }
+
+        function resetHost() {
+            currentHost = window.location.host;
+            if (localStorage) localStorage.removeItem('openni_custom_host');
+            var input = document.getElementById('inputHost');
+            if (input) input.value = currentHost;
+            updateLinks();
+            setVideoSource(videoSource);
+            updateState();
+            if (galleryOpen) loadGalleryMedia();
+        }
+
+        function updateLinks() {
+            var linkGal = document.getElementById('linkFullGal');
+            if (linkGal) linkGal.href = getBaseUrl() + '/gallery';
+        }
+
+        // Requisição HTTP simples em Vanilla ES5
+        function makeRequest(url, callback) {
+            var target = (url.indexOf('http://') === 0 || url.indexOf('https://') === 0) ? url : (getBaseUrl() + url);
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', target + (target.indexOf('?') === -1 ? '?' : '&') + '_t=' + new Date().getTime(), true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200 && callback) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            callback(data);
+                        } catch (e) {
+                            callback(null);
+                        }
+                    } else if (callback && xhr.status >= 200 && xhr.status < 300) {
+                        callback({});
+                    }
+                }
+            };
+            try {
+                xhr.send(null);
+            } catch (err) {
+                // fail safe
+            }
+        }
+
+        function sendCommand(action, value) {
+            var url = '/action?type=' + action;
+            if (value !== undefined && value !== null) {
+                url += '&value=' + encodeURIComponent(value);
+            }
+            makeRequest(url, function() {
+                updateState();
+            });
+        }
+
+        // Foco por toque (Touch-To-Focus)
+        function handleVideoTap(e) {
+            var box = document.getElementById('videoBox');
+            if (!box) return;
+
+            var rect = box.getBoundingClientRect();
+            var clickX = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)) - rect.left;
+            var clickY = (e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0)) - rect.top;
+
+            var normX = Math.max(0.05, Math.min(0.95, clickX / rect.width));
+            var normY = Math.max(0.05, Math.min(0.95, clickY / rect.height));
+
+            // Indicador visual de foco
+            var ring = document.getElementById('focusRing');
+            if (ring) {
+                ring.style.left = clickX + 'px';
+                ring.style.top = clickY + 'px';
+                ring.style.display = 'block';
+                setTimeout(function() {
+                    ring.style.display = 'none';
+                }, 1200);
+            }
+
+            // Envia comando de foco automático com coordenadas
+            sendCommand('tap_focus', normX.toFixed(3) + ',' + normY.toFixed(3));
+        }
+
+        function toggleRecord() {
+            if (isTransmitting) {
+                sendCommand('stop_record');
+            } else {
+                sendCommand('start_record');
+            }
+        }
+
+        function takeSnapshot() {
+            var url = getBaseUrl() + '/snapshot.jpg?download=true&_t=' + new Date().getTime();
+            window.open(url, '_blank');
+        }
+
+        function setZoom(val) {
+            currentZoom = val;
+            sendCommand('set_zoom', val);
+        }
+
+        function adjustZoom(delta) {
+            currentZoom = Math.max(1.0, Math.min(10.0, currentZoom + delta));
+            currentZoom = Math.round(currentZoom * 10) / 10;
+            sendCommand('set_zoom', currentZoom);
+        }
+
+        function setVideoSource(source) {
+            videoSource = source;
+            var btnSd = document.getElementById('btnSrcSd');
+            var btnHd = document.getElementById('btnSrcHd');
+            var btnPoll = document.getElementById('btnSrcPoll');
+            var img = document.getElementById('streamImg');
+
+            if (btnSd) btnSd.className = (source === 'sd') ? 'btn-tool active' : 'btn-tool';
+            if (btnHd) btnHd.className = (source === 'hd') ? 'btn-tool active' : 'btn-tool';
+            if (btnPoll) btnPoll.className = (source === 'poll') ? 'btn-tool active' : 'btn-tool';
+
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+
+            if (!img) return;
+
+            if (source === 'sd') {
+                img.src = getBaseUrl() + '/stream_sd?_t=' + new Date().getTime();
+            } else if (source === 'hd') {
+                img.src = getBaseUrl() + '/stream?_t=' + new Date().getTime();
+            } else if (source === 'poll') {
+                refreshSnapshot();
+                pollTimer = setInterval(refreshSnapshot, 1000);
+            }
+        }
+
+        function refreshSnapshot() {
+            var img = document.getElementById('streamImg');
+            if (img && videoSource === 'poll') {
+                img.src = getBaseUrl() + '/snapshot.jpg?_t=' + new Date().getTime();
+            }
+        }
+
+        function handleStreamError() {
+            if (videoSource === 'hd') {
+                setVideoSource('sd');
+            } else if (videoSource === 'sd') {
+                setVideoSource('poll');
+            }
+        }
+
+        // Galeria Integrada
+        function toggleGalleryView() {
+            galleryOpen = !galleryOpen;
+            var box = document.getElementById('galleryBox');
+            var btn = document.getElementById('btnToggleGal');
+            if (box) box.style.display = galleryOpen ? 'block' : 'none';
+            if (btn) btn.innerHTML = galleryOpen ? '&#128193; Fechar Mídias' : '&#128193; Ver Mídias Gravadas';
+            if (galleryOpen) loadGalleryMedia();
+        }
+
+        function loadGalleryMedia() {
+            var container = document.getElementById('galleryItems');
+            if (!container) return;
+            container.innerHTML = 'Carregando arquivos...';
+
+            makeRequest('/api/gallery', function(items) {
+                if (!items || !items.length) {
+                    container.innerHTML = '<div style="padding:10px;color:#8A93A6;">Nenhuma foto ou vídeo gravado ainda.</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < items.length; i++) {
+                    var it = items[i];
+                    var icon = it.isVideo ? '&#127909;' : '&#128247;';
+                    var mediaUrl = getBaseUrl() + it.url;
+                    var dlUrl = getBaseUrl() + it.downloadUrl;
+                    html += '<div class="media-row">' +
+                                '<div class="media-title">' + icon + ' ' + it.name + ' (' + it.size + ')</div>' +
+                                '<div class="media-actions">' +
+                                    '<a class="media-link" href="' + mediaUrl + '" target="_blank">Ver</a>' +
+                                    '<a class="media-link" href="' + dlUrl + '" download>Baixar</a>' +
+                                    '<button class="media-del" onclick="deleteMediaFile(\'' + it.name + '\')">&#10006;</button>' +
+                                '</div>' +
+                            '</div>';
+                }
+                container.innerHTML = html;
+            });
+        }
+
+        function deleteMediaFile(filename) {
+            if (confirm('Deseja apagar o arquivo ' + filename + '?')) {
+                sendCommand('delete_media', filename);
+                setTimeout(loadGalleryMedia, 600);
+            }
+        }
+
+        function updateState() {
+            makeRequest('/state.json', function(state) {
+                if (!state) return;
+
+                isTransmitting = (state.isTransmitting === true || state.isTransmitting === "true");
+                
+                // Botão e texto de Gravação / Transmissão
+                var btnRec = document.getElementById('btnRec');
+                var statusRec = document.getElementById('statusRec');
+                var recBadge = document.getElementById('recBadge');
+
+                if (isTransmitting) {
+                    if (btnRec) {
+                        btnRec.innerHTML = '&#9632; PARAR TRANSMISSÃO / GRAVAÇÃO';
+                        btnRec.className = 'btn-large btn-record is-recording';
+                    }
+                    if (statusRec) {
+                        statusRec.innerHTML = 'TRANSMITINDO';
+                        statusRec.className = 'status-val val-rec';
+                    }
+                    if (recBadge) recBadge.style.display = 'block';
+                } else {
+                    if (btnRec) {
+                        btnRec.innerHTML = '&#9679; INICIAR TRANSMISSÃO / GRAVAÇÃO';
+                        btnRec.className = 'btn-large btn-record';
+                    }
+                    if (statusRec) {
+                        statusRec.innerHTML = 'PRONTO';
+                        statusRec.className = 'status-val val-ok';
+                    }
+                    if (recBadge) recBadge.style.display = 'none';
+                }
+
+                // Bateria
+                var statusBat = document.getElementById('statusBat');
+                if (statusBat && state.batteryLevel !== undefined) {
+                    statusBat.innerHTML = state.batteryLevel + '%';
+                }
+
+                // Microfone / Áudio Status
+                var statusAud = document.getElementById('statusAud');
+                var btnMic = document.getElementById('btnMicToggle');
+                var micOn = (state.isMicEnabled !== false);
+                if (statusAud) {
+                    statusAud.innerHTML = micOn ? 'LIGADO' : 'MUTADO';
+                    statusAud.className = micOn ? 'status-val val-ok' : 'status-val val-rec';
+                }
+                if (btnMic) {
+                    btnMic.innerHTML = micOn ? 'Mic: Ativo' : 'Mic: Mutado';
+                    btnMic.className = micOn ? 'btn-tool active' : 'btn-tool warn';
+                }
+
+                // Zoom
+                var statusZoom = document.getElementById('statusZoom');
+                if (statusZoom && state.currentZoom !== undefined) {
+                    currentZoom = parseFloat(state.currentZoom);
+                    statusZoom.innerHTML = currentZoom.toFixed(1) + 'x';
+                }
+
+                // Lanterna
+                var btnTorch = document.getElementById('btnTorch');
+                if (btnTorch && state.isTorchEnabled !== undefined) {
+                    btnTorch.innerHTML = state.isTorchEnabled ? 'Flash: ON' : 'Flash: OFF';
+                    btnTorch.className = state.isTorchEnabled ? 'btn-tool active' : 'btn-tool';
+                }
+
+                // Bloqueio AE/AF
+                var btnLock = document.getElementById('btnLock');
+                if (btnLock && state.isLongPressLocked !== undefined) {
+                    btnLock.className = state.isLongPressLocked ? 'btn-tool warn' : 'btn-tool';
+                }
+            });
+        }
+
+        // Live Streaming Logic (ES5)
+        var liteLiveService = 'youtube';
+        function setLiteLivePreset(service) {
+            liteLiveService = service;
+            var keyInput = document.getElementById('liteStreamKey');
+            if (service === 'youtube') {
+                if (keyInput && !keyInput.value) keyInput.placeholder = 'Chave do YouTube Studio (ex: abcd-1234-...)';
+            } else if (service === 'instagram') {
+                if (keyInput && !keyInput.value) keyInput.placeholder = 'Chave do Instagram Live Producer (ex: 1784...)';
+            } else {
+                if (keyInput && !keyInput.value) keyInput.placeholder = 'Chave RTMP personalizada';
+            }
+        }
+
+        function startLiteLive() {
+            var key = document.getElementById('liteStreamKey') ? document.getElementById('liteStreamKey').value.trim() : '';
+            var cam = document.getElementById('liteLiveCamSelect') ? document.getElementById('liteLiveCamSelect').value : 'host';
+            makeRequest('/api/live/start?service=' + encodeURIComponent(liteLiveService) + '&key=' + encodeURIComponent(key) + '&camera=' + encodeURIComponent(cam), function() {
+                updateLiteLiveState();
+            });
+        }
+
+        function stopLiteLive() {
+            makeRequest('/api/live/stop', function() {
+                updateLiteLiveState();
+            });
+        }
+
+        function switchLiteLiveCam(camSource) {
+            makeRequest('/api/live/switch_camera?camera=' + encodeURIComponent(camSource), function() {
+                updateLiteLiveState();
+            });
+        }
+
+        function updateLiteLiveState() {
+            makeRequest('/api/live/status', function(st) {
+                if (!st) return;
+                var statusElem = document.getElementById('liteLiveStatus');
+                var timerElem = document.getElementById('liteLiveTimer');
+                var bitrateElem = document.getElementById('liteLiveBitrate');
+                var btnStart = document.getElementById('btnLiteStartLive');
+                var btnStop = document.getElementById('btnLiteStopLive');
+
+                if (statusElem) {
+                    statusElem.innerHTML = st.status || (st.isLive ? 'AO VIVO' : 'OFFLINE');
+                    statusElem.style.color = st.isLive ? '#FF5252' : '#00E676';
+                }
+                if (timerElem && st.durationFormatted) {
+                    timerElem.innerHTML = st.durationFormatted;
+                }
+                if (bitrateElem && st.bitrateKbps !== undefined) {
+                    bitrateElem.innerHTML = st.bitrateKbps + ' kbps (' + (st.fps || 0) + ' fps)';
+                }
+                if (btnStart && btnStop) {
+                    if (st.isLive) {
+                        btnStart.style.display = 'none';
+                        btnStop.style.display = 'block';
+                    } else {
+                        btnStart.style.display = 'block';
+                        btnStop.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Layer & Compositing Logic (ES5)
+        var currentLayout = 'single';
+        function setLiteLayout(layoutId) {
+            currentLayout = layoutId;
+            makeRequest('/api/layer/set_layout?layout=' + encodeURIComponent(layoutId), function() {
+                updateLiteLayerState();
+            });
+        }
+
+        function toggleLiteLowerThird() {
+            var title = document.getElementById('liteLtTitle') ? document.getElementById('liteLtTitle').value : '';
+            var subtitle = document.getElementById('liteLtSubtitle') ? document.getElementById('liteLtSubtitle').value : '';
+            var btn = document.getElementById('btnLiteLowerThird');
+            var isCurrentlyActive = btn && btn.className.indexOf('active') >= 0;
+            var enable = !isCurrentlyActive;
+            makeRequest('/api/layer/set_lower_third?enabled=' + enable + '&title=' + encodeURIComponent(title) + '&subtitle=' + encodeURIComponent(subtitle), function() {
+                updateLiteLayerState();
+            });
+        }
+
+        function saveLiteLowerThird() {
+            var title = document.getElementById('liteLtTitle') ? document.getElementById('liteLtTitle').value : '';
+            var subtitle = document.getElementById('liteLtSubtitle') ? document.getElementById('liteLtSubtitle').value : '';
+            makeRequest('/api/layer/set_lower_third?enabled=true&title=' + encodeURIComponent(title) + '&subtitle=' + encodeURIComponent(subtitle), function() {
+                updateLiteLayerState();
+            });
+        }
+
+        function toggleLiteOverlay(type) {
+            makeRequest('/api/layer/toggle_overlay?type=' + encodeURIComponent(type), function() {
+                updateLiteLayerState();
+            });
+        }
+
+        function updateLiteLayerState() {
+            makeRequest('/api/layer/status', function(layer) {
+                if (!layer) return;
+                currentLayout = layer.layout || 'single';
+                var activeLayoutLabel = document.getElementById('liteActiveLayout');
+                if (activeLayoutLabel) {
+                    var map = {
+                        'single': 'Câmera Única (Cheia)',
+                        'pip_bottom_right': 'Picture-in-Picture (Inferior Direito)',
+                        'pip_top_right': 'Picture-in-Picture (Superior Direito)',
+                        'split_horizontal': 'Split Lado a Lado (50/50)',
+                        'split_vertical': 'Split Vertical'
+                    };
+                    activeLayoutLabel.innerHTML = map[currentLayout] || currentLayout;
+                }
+
+                var btnSingle = document.getElementById('btnLayoutSingle');
+                var btnPipBr = document.getElementById('btnLayoutPipBr');
+                var btnPipTr = document.getElementById('btnLayoutPipTr');
+                var btnSplitH = document.getElementById('btnLayoutSplitH');
+                var btnSplitV = document.getElementById('btnLayoutSplitV');
+
+                if (btnSingle) btnSingle.className = currentLayout === 'single' ? 'btn-tool active' : 'btn-tool';
+                if (btnPipBr) btnPipBr.className = currentLayout === 'pip_bottom_right' ? 'btn-tool active' : 'btn-tool';
+                if (btnPipTr) btnPipTr.className = currentLayout === 'pip_top_right' ? 'btn-tool active' : 'btn-tool';
+                if (btnSplitH) btnSplitH.className = currentLayout === 'split_horizontal' ? 'btn-tool active' : 'btn-tool';
+                if (btnSplitV) btnSplitV.className = currentLayout === 'split_vertical' ? 'btn-tool active' : 'btn-tool';
+
+                var btnLt = document.getElementById('btnLiteLowerThird');
+                if (btnLt) btnLt.className = layer.lowerThirdEnabled ? 'btn-tool active' : 'btn-tool';
+
+                var btnTs = document.getElementById('btnLiteTimestamp');
+                if (btnTs) btnTs.className = layer.timestampEnabled ? 'btn-tool active' : 'btn-tool';
+
+                var btnVu = document.getElementById('btnLiteVuMeter');
+                if (btnVu) btnVu.className = layer.vuMeterEnabled ? 'btn-tool active' : 'btn-tool';
+
+                var btnTally = document.getElementById('btnLiteTally');
+                if (btnTally) btnTally.className = layer.tallyBorderEnabled ? 'btn-tool active' : 'btn-tool';
+            });
+        }
+
+        // Inicialização
+        initHost();
+        // Capabilities adapter initializes state.
+        // State timer is owned by the capabilities adapter.
+
+
+    </script>
+<script src="/legacy.js"></script></body>
+</html>
+

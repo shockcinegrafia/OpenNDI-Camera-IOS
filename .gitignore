@@ -5,3 +5,7 @@ packages/
 *.ipa
 *.dSYM/
 .DS_Store
+node_modules/
+adapt-web.cjs
+prepare-version.cjs
+trigger-build.cjs

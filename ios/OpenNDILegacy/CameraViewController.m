@@ -2,6 +2,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import "CameraFrameStore.h"
 #import "RemoteHTTPServer.h"
+#import "CameraControl.h"
 #import <ifaddrs.h>
 #import <arpa/inet.h>
 #import <string.h>
@@ -16,6 +17,9 @@
 @property (nonatomic, strong) UILabel *networkLabel;
 @property (nonatomic, strong) UIButton *restartButton;
 @property (nonatomic, strong) NSTimer *networkTimer;
+@property (nonatomic, strong) CameraControl *control;
+@property (nonatomic, strong) UIView *darkCover;
+@property (nonatomic, assign) BOOL resumeCapture;
 @end
 @implementation CameraViewController
 - (void)viewDidLoad {
@@ -95,15 +99,37 @@
     output.videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
     if ([self.session canAddOutput:output]) {
         [self.session addOutput:output];
+        AVCaptureConnection *connection = [output connectionWithMediaType:AVMediaTypeVideo];
+        if (connection.isVideoOrientationSupported) connection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
+        if (connection.isVideoMirroringSupported) { connection.automaticallyAdjustsVideoMirroring = NO; connection.videoMirrored = NO; }
         [output setSampleBufferDelegate:self.frameStore queue:self.captureQueue];
     }
     self.webServer = [[RemoteHTTPServer alloc] initWithFrameStore:self.frameStore];
+    self.control = [[CameraControl alloc] initWithSession:self.session store:self.frameStore];
+    self.webServer.control = self.control;
+    __weak CameraViewController *weakSelf = self;
+    self.control.darkHandler = ^(BOOL dark) { dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf setDark:dark]; }); };
+    self.darkCover = [[UIView alloc] initWithFrame:self.view.bounds];
+    self.darkCover.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.darkCover.backgroundColor = [UIColor blackColor];
+    self.darkCover.hidden = YES;
+    [self.darkCover addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(wakeScreen)]];
+    [self.view addSubview:self.darkCover];
     [self.webServer start];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(suspendCamera:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(resumeCamera:) name:UIApplicationWillEnterForegroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(captureInterrupted:) name:AVCaptureSessionWasInterruptedNotification object:self.session];
     [self updateNetworkStatus];
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    dispatch_async(self.control.queue, ^{
         [self.session startRunning];
     });
 }
+- (void)setDark:(BOOL)dark { self.darkCover.hidden = !dark; [self setNeedsStatusBarAppearanceUpdate]; }
+- (void)suspendCamera:(NSNotification *)note { [self.webServer stop]; dispatch_async(self.control.queue, ^{ self.resumeCapture = self.session.isRunning; [self.session stopRunning]; dispatch_sync(self.captureQueue, ^{ [self.frameStore clear]; }); }); }
+- (void)resumeCamera:(NSNotification *)note { [self.webServer start]; dispatch_async(self.control.queue, ^{ if (self.resumeCapture) [self.session startRunning]; }); }
+- (void)captureInterrupted:(NSNotification *)note { dispatch_async(self.captureQueue, ^{ [self.frameStore clear]; }); }
+- (BOOL)prefersStatusBarHidden { return self.darkCover && !self.darkCover.hidden; }
+- (void)wakeScreen { dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{ [self.control action:@"dark_screen" value:@"0"]; }); }
 - (NSString *)wifiAddress {
     struct ifaddrs *interfaces = NULL;
     NSString *address = @"Wi-Fi IP unavailable";
@@ -145,6 +171,6 @@
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
     [self.webServer stop];
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{ [self.session stopRunning]; });
+    dispatch_async(self.control.queue, ^{ [self.session stopRunning]; [self.frameStore clear]; });
 }
 @end
