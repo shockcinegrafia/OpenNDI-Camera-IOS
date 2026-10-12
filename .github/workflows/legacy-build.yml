@@ -1,5 +1,8 @@
 name: ARMv7 iOS 9 private SDK build
 on:
+  push:
+    branches: [legacy-v0.3.0]
+    paths: [".github/armv7-v030.flag"]
   workflow_dispatch:
     inputs:
       allow_paid_macos:
