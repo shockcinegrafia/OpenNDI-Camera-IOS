@@ -17,6 +17,7 @@
 @end
 static BOOL waitForServer(RemoteHTTPServer *server) {
     for (int i=0;i<300;i++) { if (server.isListening) { puts("READY"); fflush(stdout); return YES; } usleep(10000); }
+    fprintf(stderr, "HTTP startup/restart failed: %s\n", server.statusMessage.UTF8String);
     return NO;
 }
 int main(void) { @autoreleasepool {

@@ -6,6 +6,7 @@
 #import <unistd.h>
 #import <errno.h>
 #import <string.h>
+#import <fcntl.h>
 @interface RemoteHTTPServer ()
 @property (nonatomic, strong) CameraFrameStore *store;
 @property (nonatomic, assign) int serverFD;
@@ -126,10 +127,21 @@
     if (s < 0 || bind(s, (struct sockaddr *)&addr, sizeof(addr)) != 0 || listen(s, 12) != 0) {
         self.statusMessage = [NSString stringWithFormat:@"HTTP: %s (%d)", strerror(errno), errno];
     } else {
+        // A blocking accept is not reliably interrupted by shutdown on Darwin.
+        // Keep listener nonblocking so stop/restart always reaches cleanup.
+        int flags = fcntl(s, F_GETFL, 0);
+        if (flags < 0 || fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
+            self.statusMessage = @"Cannot configure HTTP listener";
+            @synchronized(self) { self.serverFD = -1; self.running = NO; }
+            close(s); return;
+        }
         self.listening = YES; self.statusMessage = @"Listening on port 8088";
         while (self.running) {
             int client = accept(s, NULL, NULL);
-            if (client < 0) { if (errno == EINTR) continue; break; }
+            if (client < 0) { if (errno == EINTR) continue; if (errno == EAGAIN || errno == EWOULDBLOCK) { usleep(10000); continue; } break; }
+            // Accepted sockets must remain blocking for bounded, complete sends.
+            int clientFlags = fcntl(client, F_GETFL, 0);
+            if (clientFlags < 0 || fcntl(client, F_SETFL, clientFlags & ~O_NONBLOCK) < 0) { close(client); continue; }
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
             struct timeval timeout = {2,0};
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)); setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
