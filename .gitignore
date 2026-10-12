@@ -5,3 +5,4 @@ packages/
 *.ipa
 *.dSYM/
 .DS_Store
+node_modules/

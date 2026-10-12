@@ -106,23 +106,16 @@ jobs:
           command -v ldid
           ldid -h || true
 
-      - name: Unpack shared Android web interfaces
+      - name: Check versioned web resources
+        run: test -s ios/OpenNDILegacy/index_full.html && test -s ios/OpenNDILegacy/index_lite.html && test -s ios/OpenNDILegacy/legacy.js
+
+      - name: Verify production HTTP transport on macOS
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          archive = Path("OpenNDI-iOS-Full-Web-Source.zip")
-          assert archive.is_file(), "Missing full-web source archive"
-          with zipfile.ZipFile(archive) as z:
-              for name in ("index_full.html", "index_lite.html"):
-                  suffix = "ios/OpenNDILegacy/" + name
-                  matches = [p for p in z.namelist() if p.endswith(suffix)]
-                  assert len(matches) == 1, f"Expected one {suffix}, found {matches}"
-                  Path(suffix).write_bytes(z.read(matches[0]))
-                  assert Path(suffix).stat().st_size > 1000
-          PY
+          xcrun --sdk macosx clang -fobjc-arc -Wno-incomplete-implementation -Iios/OpenNDILegacy scripts/http-harness.m ios/OpenNDILegacy/RemoteHTTPServer.m -framework Foundation -framework AVFoundation -o "$RUNNER_TEMP/http-harness"
+          python3 scripts/test-http.py "$RUNNER_TEMP/http-harness"
+
       - name: Build ARMv7 application
         shell: bash
         run: |
@@ -148,6 +141,12 @@ jobs:
             cp ios/OpenNDILegacy/Info.plist "$APP/Info.plist"
           fi
           plutil -lint "$APP/Info.plist"
+          test "$(lipo -archs "$APP/OpenNDILegacy")" = armv7
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 9.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")" = 0.3.0
+          test -s "$APP/index_full.html"
+          test -s "$APP/index_lite.html"
+          test -s "$APP/legacy.js"
           lipo -info "$APP/OpenNDILegacy"
           bash scripts/package-ipa.sh "$APP" packages/OpenNDILegacy-unsigned.ipa
       - name: Upload IPA and logs (never upload SDK)

@@ -1,0 +1,966 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <title>iPad mini 1 - OpenNDI Studio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <style>
+        * { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0a0b0e; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 10px 12px 70px; font-size: 13px; line-height: 1.4; }
+
+        /* Top Navigation Bar */
+        .top-nav { max-width: 1600px; margin: 0 auto 10px; display: flex; justify-content: space-between; align-items: center; background: rgba(18, 20, 24, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); padding: 7px 14px; border-radius: 12px; backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px; }
+        .brand { display: flex; align-items: center; gap: 8px; }
+        .brand-title { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.3px; }
+        .brand-badge { background: #00E676; color: #000; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
+        .nav-links { display: flex; gap: 6px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #e2e8f0; padding: 5px 11px; border-radius: 8px; font-size: 11px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.15s ease; }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .nav-btn.active { background: #4FC3F7; color: #000; border-color: #4FC3F7; font-weight: 700; }
+
+        /* Studio Live Layer Switcher Toolbar */
+        .studio-toolbar { max-width: 1600px; margin: 0 auto 10px; background: rgba(18, 20, 24, 0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 6px 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; backdrop-filter: blur(10px); }
+        .toolbar-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .toolbar-label { font-size: 10px; font-weight: 700; color: #8A93A6; text-transform: uppercase; letter-spacing: 0.4px; }
+
+        /* Discrete Battery, Storage Pills & Quality Switcher */
+        .system-info-pills { display: flex; gap: 5px; align-items: center; font-size: 10px; font-weight: 600; }
+        .pill { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); display: inline-flex; align-items: center; gap: 3px; }
+        .pill-green { color: #81C784; }
+        .pill-cyan { color: #4FC3F7; }
+        .pill-net { font-family: monospace; font-size: 10px; font-weight: 700; }
+        .pill-net-good { color: #00E676; border-color: rgba(0,230,118,0.3); }
+        .pill-net-warn { color: #FFB300; border-color: rgba(255,179,0,0.3); }
+        .pill-net-bad { color: #FF5252; border-color: rgba(255,82,82,0.4); animation: netPulse 1.2s infinite; }
+        @keyframes netPulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .quality-toggle { display: inline-flex; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 1px; gap: 2px; }
+        .pill-btn { background: transparent; border: none; color: #8A93A6; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 5px; cursor: pointer; transition: all 0.15s ease; }
+        .pill-btn:hover { color: #ffffff; }
+        .pill-btn.active { background: #4FC3F7; color: #000; }
+        .pill-btn.active.sd-mode { background: #00E676; color: #000; }
+
+        /* Floating Action Buttons */
+        .fab-container { position: fixed; bottom: 16px; right: 16px; display: flex; gap: 10px; z-index: 1000; }
+        .btn-global-rec { width: 46px; height: 46px; border-radius: 23px; border: none; box-shadow: 0 4px 16px rgba(0,0,0,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s ease; background: #E53935; color: #fff; }
+        .btn-global-rec:hover { transform: scale(1.06); }
+        .btn-global-rec.recording { background: #E53935; border: 2px solid #ff5252; box-shadow: 0 0 16px rgba(229,57,53,0.8); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.96); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* Cameras Grid */
+        .cameras-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; max-width: 1600px; margin: 0 auto; align-items: start; }
+        @media (max-width: 480px) { .cameras-grid { grid-template-columns: 1fr; } }
+        .camera-node { background: rgba(18, 20, 24, 0.96); border: 1px solid rgba(255,255,255,0.08); padding: 10px; border-radius: 12px; width: 100%; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
+
+        /* Header of Card */
+        .header { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 2px 2px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .header-title-container { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .header-title { font-size: 12px; font-weight: 700; color: #ffffff; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-ip { font-size: 10px; color: #888; font-weight: 500; font-family: monospace; }
+        .header-sub { font-size: 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+        /* Video Viewfinder & Fullscreen Controls */
+        .video-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+        .video-wrapper.aspect-portrait { aspect-ratio: 9/16; max-height: 440px; margin-left: auto; margin-right: auto; }
+        .video-wrapper.aspect-landscape { aspect-ratio: 16/9; max-height: none; }
+        .video-wrapper.aspect-cover img { object-fit: cover !important; }
+        .video-wrapper img { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+        .video-overlay-badge { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.4px; border: 1px solid rgba(255,255,255,0.12); }
+        .orient-badge { position: absolute; top: 6px; left: 70px; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; color: #FFD54F; border: 1px solid rgba(255,213,79,0.3); display: none; }
+
+        /* Fullscreen mode controls overlay */
+        .fullscreen-controls { display: none; position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(15, 17, 21, 0.92); backdrop-filter: blur(12px); padding: 6px 14px; border-radius: 20px; gap: 6px; border: 1px solid rgba(255,255,255,0.2); z-index: 9999; align-items: center; }
+        .video-wrapper:fullscreen { background: #000; display: flex; align-items: center; justify-content: center; width: 100vw; height: 100vh; }
+        .video-wrapper:fullscreen img { width: 100vw; height: 100vh; object-fit: contain; }
+        .video-wrapper:fullscreen .fullscreen-controls { display: flex !important; }
+
+        /* Action Controls */
+        .action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 1px 0; }
+        .btn-icon { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 4px 9px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease; user-select: none; }
+        .btn-icon:hover { background: rgba(255, 255, 255, 0.16); }
+        .btn-snap { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+        .btn-snap:hover { background: #ffffff; color: #000; border-color: #fff; }
+        .btn-rec { background: rgba(255, 255, 255, 0.06); border-color: #E53935; color: #ffffff; }
+        .btn-rec.recording { background: #E53935 !important; border-color: #ff5252 !important; box-shadow: 0 0 12px rgba(229,57,53,0.7); }
+        .btn-warning { background: rgba(255, 193, 7, 0.1); color: #FFC107; border-color: rgba(255, 193, 7, 0.3); }
+        .btn-warning.locked { background: #FFC107 !important; color: #000 !important; font-weight: bold; }
+
+        /* Controls Container (Integrated 3-Column Deck) */
+        .controls-container { background: rgba(14, 15, 18, 0.85); border: 1px solid rgba(255,255,255,0.06); padding: 7px; border-radius: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px; align-items: stretch; text-align: left; }
+        .card { background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 7px; display: flex; flex-direction: column; justify-content: space-between; gap: 5px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 700; color: #8A93A6; text-transform: uppercase; letter-spacing: 0.3px; }
+
+        /* Zoom Buttons & Sliders */
+        .zoom-btn-row { display: flex; gap: 3px; }
+        .zoom-btn { background: #1f232d; border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 3px 6px; border-radius: 5px; font-size: 10px; font-weight: 700; cursor: pointer; flex: 1; transition: all 0.15s; text-align: center; }
+        .zoom-btn:hover { background: #2c3240; }
+        .zoom-btn.active { background: #4FC3F7; color: #000; border-color: #4FC3F7; }
+        input[type=range] { width: 100%; height: 5px; accent-color: #4FC3F7; cursor: pointer; }
+
+        /* Integrated Audio VU Meter */
+        .vu-meter-bar-container { display: flex; gap: 2px; height: 10px; background: rgba(0,0,0,0.5); padding: 2px; border-radius: 3px; }
+        .vu-bar-seg { flex: 1; background: #222630; border-radius: 1px; transition: background 0.08s ease; }
+    </style>
+    <script type="text/javascript">
+        var cameras = [""];
+        var cameraQualities = {};
+
+        function loadCameras() {
+            var saved = localStorage.getItem('ndi_cameras');
+            if (saved) { try { cameras = JSON.parse(saved); } catch (e) {} }
+            for (var i = 0; i < 32; i++) {
+                var q = localStorage.getItem('ndi_cam_qual_' + i);
+                if (q) cameraQualities[i] = q;
+            }
+        }
+        try { loadCameras(); } catch (e) {}
+
+        function saveCameras() {
+            try { localStorage.setItem('ndi_cameras', JSON.stringify(cameras)); } catch (e) {}
+        }
+
+        function getStreamUrl(idx) {
+            var base = cameras[idx] || '';
+            var mode = cameraQualities[idx] || 'hd';
+            var endpoint = mode === 'sd' ? '/stream_sd' : '/stream';
+            return base + endpoint + '?_t=' + new Date().getTime();
+        }
+
+        function setStreamQuality(idx, mode) {
+            cameraQualities[idx] = mode;
+            try { localStorage.setItem('ndi_cam_qual_' + idx, mode); } catch (e) {}
+            
+            var img = document.getElementById('videoImg_' + idx);
+            if (img) {
+                img.src = getStreamUrl(idx);
+            }
+            
+            var btnHd = document.getElementById('btn_hd_' + idx);
+            var btnSd = document.getElementById('btn_sd_' + idx);
+            if (btnHd && btnSd) {
+                if (mode === 'sd') {
+                    btnHd.className = 'pill-btn';
+                    btnSd.className = 'pill-btn active sd-mode';
+                } else {
+                    btnHd.className = 'pill-btn active';
+                    btnSd.className = 'pill-btn';
+                }
+            }
+
+            var qBadge = document.getElementById('qualBadge_' + idx);
+            if (qBadge) {
+                if (mode === 'sd') {
+                    qBadge.className = 'video-overlay-badge';
+                    qBadge.style.left = 'auto';
+                    qBadge.style.right = '10px';
+                    qBadge.style.color = '#00E676';
+                    qBadge.style.borderColor = 'rgba(0,230,118,0.4)';
+                    qBadge.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>SD (Eco)';
+                } else {
+                    qBadge.className = 'video-overlay-badge';
+                    qBadge.style.left = 'auto';
+                    qBadge.style.right = '10px';
+                    qBadge.style.color = '#4FC3F7';
+                    qBadge.style.borderColor = 'rgba(79,195,247,0.4)';
+                    qBadge.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm7-1c0 .55-.45 1-1 1h-4V9h4c.55 0 1 .45 1 1v4zm-1.5-.5v-3h-2v3h2z"/></svg>HD';
+                }
+            }
+
+            var fsBtn = document.getElementById('fsQualBtn_' + idx);
+            if (fsBtn) {
+                fsBtn.innerHTML = mode === 'sd' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:2px;"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>SD' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:2px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm7-1c0 .55-.45 1-1 1h-4V9h4c.55 0 1 .45 1 1v4zm-1.5-.5v-3h-2v3h2z"/></svg>HD';
+            }
+        }
+
+        function toggleStreamQuality(idx) {
+            var current = cameraQualities[idx] || 'hd';
+            setStreamQuality(idx, current === 'hd' ? 'sd' : 'hd');
+        }
+
+        function handleStreamError(idx) {
+            setTimeout(function() {
+                var img = document.getElementById('videoImg_' + idx);
+                if (img) {
+                    img.src = getStreamUrl(idx);
+                }
+            }, 2000);
+        }
+
+        function sendCmd(idx, path) {
+            var base = cameras[idx];
+            var url = base + path + (path.indexOf('?') >= 0 ? '&' : '?') + '_t=' + new Date().getTime();
+            try {
+                var xhr = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+                xhr.open('GET', url, true);
+                xhr.send();
+            } catch (e) {
+                var img = new Image();
+                img.src = url;
+            }
+        }
+
+        function captureSnapshot(idx) {
+            var base = cameras[idx];
+            var downloadLink = document.createElement('a');
+            downloadLink.href = base + '/snapshot.jpg?download=true&_t=' + new Date().getTime();
+            downloadLink.download = 'OpenNDI_Snapshot_' + Date.now() + '.jpg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function toggleFullscreen(elemId) {
+            var elem = document.getElementById(elemId);
+            if (!elem) return;
+            if (!document.fullscreenElement) {
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function sendSlider(idx, type, val) {
+            sendCmd(idx, '/action/set_' + type + '?val=' + encodeURIComponent(val));
+        }
+
+        var slidingFocus = {};
+        var slidingVolume = {};
+        var controlsVisible = {};
+
+        function toggleControls(idx) {
+            var c = document.getElementById('controls_' + idx);
+            var icon = document.getElementById('toggleIcon_' + idx);
+            if (!c || !icon) return;
+            if (controlsVisible[idx] === false) {
+                c.style.display = 'block';
+                icon.innerHTML = '▼';
+                controlsVisible[idx] = true;
+            } else {
+                c.style.display = 'none';
+                icon.innerHTML = '▶';
+                controlsVisible[idx] = false;
+            }
+        }
+
+        var globalRecordingState = {};
+
+        function updateGlobalRecBtn() {
+            var anyRecording = false;
+            for (var k in globalRecordingState) {
+                if (globalRecordingState[k]) {
+                    anyRecording = true;
+                    break;
+                }
+            }
+            var gBtn = document.getElementById('globalRecBtn') || document.getElementById('globalRecFab');
+            if (gBtn) {
+                if (anyRecording) {
+                    gBtn.className = 'btn-global-rec recording';
+                    gBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+                } else {
+                    gBtn.className = 'btn-global-rec';
+                    gBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff"><circle cx="12" cy="12" r="8"/></svg>';
+                }
+            }
+        }
+
+        function toggleAllRecords() {
+            var anyRecording = false;
+            for (var k in globalRecordingState) {
+                if (globalRecordingState[k]) {
+                    anyRecording = true;
+                    break;
+                }
+            }
+            cameras.forEach(function(base, idx) {
+                if (anyRecording) {
+                    if (globalRecordingState[idx]) {
+                        sendCmd(idx, '/action/stop_record');
+                    }
+                } else {
+                    if (!globalRecordingState[idx]) {
+                        sendCmd(idx, '/action/start_record');
+                    }
+                }
+            });
+        }
+
+        var syncStateInFlight = {};
+        var cameraDetails = {};
+        var cameraAspectModes = {}; // 'auto', '16:9', '9:16', 'cover'
+        var camLatencies = {};
+        var camAvgLatencies = {};
+        var camHighLatencyCount = {};
+        var autoAdaptedToSd = {};
+        var latencyThresholdMs = 300;
+        var isAutoAdaptSdEnabled = true;
+
+        function toggleAutoAdaptSd() {
+            isAutoAdaptSdEnabled = !isAutoAdaptSdEnabled;
+            var btn = document.getElementById('auto_sd_toggle');
+            if (btn) {
+                btn.style.background = isAutoAdaptSdEnabled ? '#00E676' : 'rgba(255,255,255,0.08)';
+                btn.style.color = isAutoAdaptSdEnabled ? '#000' : '#fff';
+            }
+        }
+
+        function updateCamNetPill(idx, rtt, isSd) {
+            var netPill = document.getElementById('netPill_' + idx);
+            if (!netPill) return;
+            var estBitrate = isSd ? '420 Kbps' : '2.2 Mbps';
+            var autoLabel = (autoAdaptedToSd[idx] && isSd) ? ' (Auto-SD)' : '';
+            netPill.className = 'pill pill-net ' + (rtt < 130 ? 'pill-net-good' : (rtt < 300 ? 'pill-net-warn' : 'pill-net-bad'));
+            netPill.innerHTML = '⚡ ' + rtt + 'ms • ' + estBitrate + autoLabel;
+            netPill.title = 'Latência de rede: ' + rtt + 'ms | Vazão estimada: ' + estBitrate + (autoAdaptedToSd[idx] ? ' (Ajustado dinamicamente para SD para prevenir congelamentos)' : '');
+        }
+
+        function updateToolbarNetStats(totalKbps, activeCams) {
+            var statElem = document.getElementById('studio_net_stats');
+            if (!statElem) return;
+            var mbps = (totalKbps / 1000).toFixed(1);
+            statElem.innerHTML = '🌐 ' + activeCams + ' Câmera(s) • ~' + mbps + ' Mbps';
+        }
+
+        function syncState() {
+            var totalEstimatedKbps = 0;
+            var activeCams = 0;
+
+            cameras.forEach(function(base, idx) {
+                if (syncStateInFlight[idx]) return;
+                syncStateInFlight[idx] = true;
+                var reqStart = (new Date()).getTime();
+
+                try {
+                    var xhr = new XMLHttpRequest();
+                    xhr.timeout = 1800;
+                    xhr.open('GET', base + '/state.json?_t=' + (new Date()).getTime(), true);
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState === 4) {
+                            syncStateInFlight[idx] = false;
+                            var rtt = (new Date()).getTime() - reqStart;
+                            if (xhr.status === 200) {
+                                try {
+                                    var state = JSON.parse(xhr.responseText);
+                                    cameraDetails[idx] = state;
+                                    
+                                    // Calculate moving average latency
+                                    var prevAvg = camAvgLatencies[idx] || rtt;
+                                    var curAvg = Math.round(prevAvg * 0.65 + rtt * 0.35);
+                                    camAvgLatencies[idx] = curAvg;
+                                    camLatencies[idx] = rtt;
+
+                                    var isSd = (cameraQualities[idx] === 'sd');
+                                    var camKbps = isSd ? 420 : 2200;
+                                    totalEstimatedKbps += camKbps;
+                                    activeCams++;
+
+                                    // Adaptive Network Logic: Auto switch to SD tier when latency is high
+                                    if (isAutoAdaptSdEnabled) {
+                                        if (curAvg > latencyThresholdMs) {
+                                            camHighLatencyCount[idx] = (camHighLatencyCount[idx] || 0) + 1;
+                                            if (camHighLatencyCount[idx] >= 2 && !isSd) {
+                                                autoAdaptedToSd[idx] = true;
+                                                setStreamQuality(idx, 'sd');
+                                                console.log('[Multicam Network] High latency detected (' + curAvg + 'ms). Switched camera #' + (idx+1) + ' to SD tier.');
+                                            }
+                                        } else if (curAvg < 140) {
+                                            camHighLatencyCount[idx] = 0;
+                                        }
+                                    }
+
+                                    updateCamUI(idx, state);
+                                    updateCamNetPill(idx, curAvg, cameraQualities[idx] === 'sd');
+                                } catch (e) {}
+                            }
+                        }
+                    };
+                    xhr.ontimeout = function() {
+                        syncStateInFlight[idx] = false;
+                        camAvgLatencies[idx] = 1500;
+                        updateCamNetPill(idx, 1500, cameraQualities[idx] === 'sd');
+                        if (isAutoAdaptSdEnabled && cameraQualities[idx] !== 'sd') {
+                            autoAdaptedToSd[idx] = true;
+                            setStreamQuality(idx, 'sd');
+                        }
+                    };
+                    xhr.onerror = function() { syncStateInFlight[idx] = false; };
+                    xhr.send(null);
+                } catch (e) {
+                    syncStateInFlight[idx] = false;
+                }
+            });
+
+            updateToolbarNetStats(totalEstimatedKbps, activeCams);
+        }
+
+        var syncDiscoveredInFlight = false;
+        function syncDiscovered() {
+            if (syncDiscoveredInFlight) return;
+            syncDiscoveredInFlight = true;
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.timeout = 2000;
+                xhr.open('GET', '/discovered.json?_t=' + new Date().getTime(), true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        syncDiscoveredInFlight = false;
+                        if (xhr.status === 200) {
+                            try {
+                                var discovered = JSON.parse(xhr.responseText);
+                                var newCameras = [""];
+                                var hostWithPort = window.location.host;
+                                var hostIp = window.location.hostname;
+                                
+                                discovered.forEach(function(ip) {
+                                    if (ip.indexOf(hostWithPort) === -1 && ip.indexOf(hostIp) === -1) {
+                                        newCameras.push(ip);
+                                    }
+                                });
+                                if (JSON.stringify(cameras) !== JSON.stringify(newCameras)) {
+                                    cameras = newCameras;
+                                    saveCameras();
+                                    renderCameras();
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                };
+                xhr.ontimeout = function() { syncDiscoveredInFlight = false; };
+                xhr.onerror = function() { syncDiscoveredInFlight = false; };
+                xhr.send(null);
+            } catch (e) {
+                syncDiscoveredInFlight = false;
+            }
+        }
+
+        function toggleCameraAspect(idx) {
+            var modes = ['auto', '16:9', '9:16', 'cover'];
+            var cur = cameraAspectModes[idx] || 'auto';
+            var nextIdx = (modes.indexOf(cur) + 1) % modes.length;
+            cameraAspectModes[idx] = modes[nextIdx];
+            applyCameraAspect(idx);
+        }
+
+        function applyCameraAspect(idx, detectedIsPortrait) {
+            var wrapper = document.getElementById('videoWrapper_' + idx);
+            var badge = document.getElementById('orientBadge_' + idx);
+            if (!wrapper) return;
+            var mode = cameraAspectModes[idx] || 'auto';
+            
+            wrapper.classList.remove('aspect-portrait', 'aspect-landscape', 'aspect-cover');
+            
+            var isPortrait = detectedIsPortrait;
+            if (typeof isPortrait === 'undefined') {
+                var state = cameraDetails[idx];
+                if (state && typeof state.isPortrait !== 'undefined') {
+                    isPortrait = state.isPortrait;
+                } else {
+                    var img = document.getElementById('videoImg_' + idx);
+                    if (img && img.naturalHeight && img.naturalWidth) {
+                        isPortrait = img.naturalHeight > img.naturalWidth;
+                    }
+                }
+            }
+
+            if (mode === '16:9') {
+                wrapper.classList.add('aspect-landscape');
+                if (badge) { badge.style.display = 'block'; badge.innerHTML = '🖥 16:9 (Horizontal)'; }
+            } else if (mode === '9:16') {
+                wrapper.classList.add('aspect-portrait');
+                if (badge) { badge.style.display = 'block'; badge.innerHTML = '📱 9:16 (Vertical)'; }
+            } else if (mode === 'cover') {
+                wrapper.classList.add('aspect-cover');
+                if (badge) { badge.style.display = 'block'; badge.innerHTML = '🔍 PREENCHER'; }
+            } else {
+                // Auto mode based on physical rotation
+                if (isPortrait) {
+                    wrapper.classList.add('aspect-portrait');
+                    if (badge) { badge.style.display = 'block'; badge.innerHTML = '📱 9:16 (Vertical)'; }
+                } else {
+                    wrapper.classList.add('aspect-landscape');
+                    if (badge) { badge.style.display = 'block'; badge.innerHTML = '🖥 16:9 (Horizontal)'; }
+                }
+            }
+        }
+
+        function handleCamImgLoad(img, idx) {
+            if (img && img.naturalWidth && img.naturalHeight) {
+                var isPortrait = img.naturalHeight > img.naturalWidth;
+                applyCameraAspect(idx, isPortrait);
+            }
+        }
+
+        function updateCamUI(idx, state) {
+            globalRecordingState[idx] = state.isTransmitting;
+            updateGlobalRecBtn();
+
+            if (typeof state.isPortrait !== 'undefined') {
+                applyCameraAspect(idx, state.isPortrait);
+            }
+
+            var titleElem = document.getElementById('camTitle_' + idx);
+            if (titleElem && state.deviceName) {
+                titleElem.innerHTML = state.deviceName;
+            }
+
+            var battElem = document.getElementById('battPill_' + idx);
+            if (battElem && typeof state.batteryLevel !== 'undefined') {
+                battElem.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>' + state.batteryLevel + '%';
+            }
+            var storageElem = document.getElementById('storagePill_' + idx);
+            if (storageElem && state.freeStorage) {
+                storageElem.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:3px;"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4 14H8v-2h8v2zm0-4H8v-2h8v2z"/></svg>' + state.freeStorage;
+            }
+
+            var badge = document.getElementById('badge_' + idx);
+            if (badge) {
+                if (state.isCameraEnabled === false) {
+                    badge.style.background = '#FF5252';
+                    badge.style.color = '#FFFFFF';
+                    badge.style.borderColor = '#ff5252';
+                    badge.innerHTML = '● CÂMERA OFF (HOST)';
+                } else if (state.isTransmitting) {
+                    badge.style.background = '#E53935';
+                    badge.style.color = '#FFFFFF';
+                    badge.style.borderColor = '#ff5252';
+                    badge.innerHTML = '● GRAVANDO';
+                } else {
+                    badge.style.background = 'rgba(0,0,0,0.7)';
+                    badge.style.color = '#fff';
+                    badge.style.borderColor = 'rgba(255,255,255,0.1)';
+                    badge.innerHTML = 'AO VIVO';
+                }
+            }
+
+            var camPowerBtn = document.getElementById('camPowerBtn_' + idx);
+            var camPowerText = document.getElementById('camPowerText_' + idx);
+            if (camPowerBtn) {
+                if (state.isCameraEnabled === false) {
+                    camPowerBtn.style.background = 'rgba(255, 82, 82, 0.25)';
+                    camPowerBtn.style.borderColor = '#FF5252';
+                    camPowerBtn.style.color = '#FF5252';
+                    if (camPowerText) camPowerText.innerHTML = 'Câm. OFF';
+                } else {
+                    camPowerBtn.style.background = 'rgba(255, 255, 255, 0.08)';
+                    camPowerBtn.style.borderColor = 'rgba(255, 255, 255, 0.18)';
+                    camPowerBtn.style.color = '#fff';
+                    if (camPowerText) camPowerText.innerHTML = 'Câm. ON';
+                }
+            }
+
+            var recBtn = document.getElementById('recBtn_' + idx);
+            var fsRecBtn = document.getElementById('fsRecBtn_' + idx);
+            if (recBtn) {
+                if (state.isTransmitting) {
+                    recBtn.className = 'btn-icon btn-rec recording';
+                    recBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#ffffff"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Gravando';
+                    if (fsRecBtn) fsRecBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#ffffff" style="vertical-align:-2px;margin-right:3px;"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Gravando';
+                } else {
+                    recBtn.className = 'btn-icon btn-rec';
+                    recBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#ffffff"><circle cx="12" cy="12" r="8"/></svg> Gravar';
+                    if (fsRecBtn) fsRecBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#ffffff" style="vertical-align:-2px;margin-right:3px;"><circle cx="12" cy="12" r="8"/></svg>Gravar';
+                }
+            }
+            var lockBtn = document.getElementById('lockBtn_' + idx);
+            if (lockBtn) {
+                lockBtn.className = state.isLongPressLocked ? 'btn-icon btn-warning locked' : 'btn-icon btn-warning';
+            }
+
+            var normLevel = state.audioLevel <= 1.0 ? (state.audioLevel || 0) : ((state.audioLevel || 0) / 100.0);
+            for (var b = 1; b <= 6; b++) {
+                var bar = document.getElementById('vuBar_' + idx + '_' + b);
+                if (bar) {
+                    var threshold = (b - 1) / 6.0;
+                    if (normLevel >= threshold) {
+                        bar.style.background = b > 5 ? '#E53935' : (b > 4 ? '#FFB300' : '#00E676');
+                    } else {
+                        bar.style.background = '#222630';
+                    }
+                }
+            }
+
+            // GPU State Update
+            var gpuToggle = document.getElementById('gpuToggleBtn_' + idx);
+            if (gpuToggle && typeof state.gpuEnabled !== 'undefined') {
+                gpuToggle.style.color = state.gpuEnabled ? '#00E676' : '#888';
+                gpuToggle.innerHTML = state.gpuEnabled ? 'GPU ON' : 'GPU OFF';
+            }
+            var gpuStatus = document.getElementById('gpuStatusText_' + idx);
+            if (gpuStatus && state.gpuEngine) {
+                gpuStatus.innerHTML = (state.gpuEngine.toUpperCase()) + (state.hasVulkan ? ' (VK ✓)' : ' (GLES)');
+            }
+            var gpuLat = document.getElementById('gpuLatText_' + idx);
+            if (gpuLat && typeof state.gpuLatencyMs !== 'undefined') {
+                gpuLat.innerHTML = (state.gpuLatencyMs || 0) + ' ms';
+            }
+            var curFilter = state.gpuFilterId || 'crisp';
+            ['crisp', 'vivid', 'lowlight', 'warm', 'neutral'].forEach(function(fId) {
+                var fBtn = document.getElementById('gpuFilt_' + fId + '_' + idx);
+                if (fBtn) {
+                    if (curFilter === fId) {
+                        fBtn.style.background = '#4FC3F7';
+                        fBtn.style.color = '#000';
+                        fBtn.style.borderColor = '#4FC3F7';
+                    } else {
+                        fBtn.style.background = '#222630';
+                        fBtn.style.color = '#fff';
+                        fBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+                    }
+                }
+            });
+
+            // NDI State Update
+            var ndiBtn = document.getElementById('ndiToggleBtn_' + idx);
+            var ndiStateText = document.getElementById('ndiStateText_' + idx);
+            if (ndiBtn) {
+                ndiBtn.innerHTML = state.isTransmitting ? 'NDI: ATIVO 🔴' : 'NDI: OFF';
+                ndiBtn.style.color = state.isTransmitting ? '#E53935' : '#fff';
+            }
+            if (ndiStateText) {
+                ndiStateText.innerHTML = state.isTransmitting ? ('NDI: ' + (state.ndiTransportMode || 'UDP')) : 'NDI: Standby';
+            }
+
+            // Lens & Quality Profile
+            var lensTxt = document.getElementById('activeLensText_' + idx);
+            if (lensTxt) {
+                lensTxt.innerHTML = (state.activeLensLabel || state.activeLensType || 'Padrão') + (state.qualityProfileLabel ? (' • ' + state.qualityProfileLabel) : '');
+            }
+        }
+
+        function handleCamVideoTap(event, idx) {
+            var wrapper = document.getElementById('videoWrapper_' + idx);
+            if (!wrapper) return;
+            var rect = wrapper.getBoundingClientRect();
+            var clickX = event.clientX - rect.left;
+            var clickY = event.clientY - rect.top;
+            var normX = Math.max(0.05, Math.min(0.95, clickX / rect.width));
+            var normY = Math.max(0.05, Math.min(0.95, clickY / rect.height));
+
+            var ring = document.getElementById('focusRing_' + idx);
+            if (ring) {
+                ring.style.left = clickX + 'px';
+                ring.style.top = clickY + 'px';
+                ring.style.display = 'block';
+                setTimeout(function() { ring.style.display = 'none'; }, 1200);
+            }
+            sendCmd(idx, '/action/tap_focus?val=' + normX.toFixed(3) + ',' + normY.toFixed(3));
+        }
+
+        function addCustomCameraHost() {
+            var input = document.getElementById('newHostInput');
+            if (!input || !input.value) return;
+            var host = input.value.trim().replace(/^http:\/\//i, '').replace(/\/+$/, '');
+            if (host && cameras.indexOf('http://' + host) === -1) {
+                cameras.push('http://' + host);
+                saveCameras();
+                renderCameras();
+                input.value = '';
+            }
+        }
+
+        function renderCameras() {
+            var container = document.getElementById('camerasContainer');
+            if (!container) return;
+            
+            // Smart reconciliation: remove stale cards
+            var existingCards = container.querySelectorAll('.camera-node');
+            for (var i = 0; i < existingCards.length; i++) {
+                var cardId = existingCards[i].id;
+                var cardIdx = parseInt(cardId.replace('camCard_', ''));
+                if (isNaN(cardIdx) || cardIdx >= cameras.length) {
+                    container.removeChild(existingCards[i]);
+                }
+            }
+
+            cameras.forEach(function(base, idx) {
+                var existing = document.getElementById('camCard_' + idx);
+                if (existing) {
+                    // Already rendered, keep video stream running smoothly
+                    return;
+                }
+                var qMode = cameraQualities[idx] || 'hd';
+                var streamUrl = getStreamUrl(idx);
+                var displayIp = base === '' ? window.location.host : base.replace('http://', '');
+                var title = base === '' ? 'iPad mini 1 (Host Principal)' : base;
+                var isSd = qMode === 'sd';
+                
+                var camDiv = document.createElement('div');
+                camDiv.className = 'camera-node';
+                camDiv.id = 'camCard_' + idx;
+                camDiv.innerHTML = "\n                    <div class=\"header\">\n                        <div class=\"header-title-container\">\n                            <div class=\"header-title\" id=\"camTitle_" + idx + "\">" + title + "</div>\n                            <div class=\"header-ip\">" + displayIp + "</div>\n                        </div>\n                        <div class=\"header-sub\">\n                            <div class=\"quality-toggle\" title=\"Qualidade de transmissão deste dispositivo\">\n                                <button id=\"btn_hd_" + idx + "\" class=\"pill-btn " + (!isSd ? 'active' : '') + "\" onclick=\"setStreamQuality(" + idx + ", 'hd')\">HD</button>\n                                <button id=\"btn_sd_" + idx + "\" class=\"pill-btn " + (isSd ? 'active sd-mode' : '') + "\" onclick=\"setStreamQuality(" + idx + ", 'sd')\">SD (Eco)</button>\n                            </div>\n                            <div class=\"system-info-pills\">\n                                <span class=\"pill pill-green\" id=\"battPill_" + idx + "\"><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"currentColor\" style=\"vertical-align:-1px;margin-right:2px;\"><path d=\"M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z\"/></svg>--</span>\n                                <span class=\"pill pill-cyan\" id=\"storagePill_" + idx + "\"><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"currentColor\" style=\"vertical-align:-1px;margin-right:2px;\"><path d=\"M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4 14H8v-2h8v2zm0-4H8v-2h8v2z\"/></svg>--</span>\n                                <span class=\"pill pill-net pill-net-good\" id=\"netPill_" + idx + "\">⚡ --ms</span>\n                            </div>\n                            <span id=\"toggleIcon_" + idx + "\" onclick=\"toggleControls(" + idx + ")\" style=\"cursor:pointer; font-size: 13px; user-select: none; margin-left: 6px;\" title=\"Recolher Controles\">▼</span>\n                            <span onclick=\"cameras.splice(" + idx + ",1); saveCameras(); renderCameras();\" style=\"color:#666; cursor:pointer; font-size:11px; display:inline-flex; align-items:center; user-select: none; margin-left: 4px;\" title=\"Remover\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z\"/></svg></span>\n                        </div>\n                    </div>\n                    <div class=\"video-wrapper\" id=\"videoWrapper_" + idx + "\" onclick=\"handleCamVideoTap(event, " + idx + ")\">\n                        <div id=\"focusRing_" + idx + "\" style=\"position: absolute; width: 44px; height: 44px; border: 2px solid #FFD54F; border-radius: 50%; margin-left: -22px; margin-top: -22px; pointer-events: none; display: none; background: rgba(255, 213, 79, 0.25); z-index: 100;\"></div>\n                        <video id=\"videoRtc_" + idx + "\" autoplay playsinline muted style=\"display:none; width:100%; height:100%; object-fit:contain; background:#000;\"></video>\n                        <img id=\"videoImg_" + idx + "\" src=\"" + streamUrl + "\" alt=\"Live Preview\" onload=\"handleCamImgLoad(this, " + idx + ")\" onerror=\"handleStreamError(" + idx + ")\" ondblclick=\"toggleFullscreen('videoWrapper_" + idx + "')\" />\n                        <div class=\"video-overlay-badge\" id=\"badge_" + idx + "\">AO VIVO</div>\n                        <div class=\"video-overlay-badge\" id=\"webrtcBadge_" + idx + "\" style=\"left: 6px; top: 32px; background: rgba(0,0,0,0.75); color: #4FC3F7; border-color: rgba(79,195,247,0.3); font-size: 8px;\">RTC: STANDBY</div>\n                        <div class=\"orient-badge\" id=\"orientBadge_" + idx + "\" onclick=\"toggleCameraAspect(" + idx + ")\" title=\"Alternar proporção\" style=\"cursor:pointer;\">🖥 16:9</div>\n                        <div class=\"video-overlay-badge\" id=\"qualBadge_" + idx + "\" onclick=\"toggleStreamQuality(" + idx + ")\" style=\"left: auto; right: 8px; cursor: pointer; color: " + (isSd ? '#00E676' : '#4FC3F7') + "; border-color: " + (isSd ? 'rgba(0,230,118,0.4)' : 'rgba(79,195,247,0.4)') + ";\" title=\"Alternar HD/SD\">" + (isSd ? '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:2px;"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>SD' : '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px;margin-right:2px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm7-1c0 .55-.45 1-1 1h-4V9h4c.55 0 1 .45 1 1v4zm-1.5-.5v-3h-2v3h2z"/></svg>HD') + "</div>\n\n                        <!-- Fullscreen Camera Control Overlay -->\n                        <div class=\"fullscreen-controls\" onclick=\"event.stopPropagation()\">\n                            <button class=\"btn-icon\" id=\"fsQualBtn_" + idx + "\" onclick=\"toggleStreamQuality(" + idx + ")\">" + (isSd ? 'SD' : 'HD') + "</button>\n                            <button class=\"btn-icon btn-snap\" onclick=\"captureSnapshot(" + idx + ")\">Foto</button>\n                            <button class=\"btn-icon\" onclick=\"toggleCameraAspect(" + idx + ")\">Proporção</button>\n                            <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/zoom_05')\">.5×</button>\n                            <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/zoom_1')\">1×</button>\n                            <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/zoom_2')\">2×</button>\n                            <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/zoom_3')\">3×</button>\n                            <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/toggle_camera')\">Flip</button>\n                            <button class=\"btn-icon btn-warning\" onclick=\"sendCmd(" + idx + ", '/action/toggle_lock')\">Lock</button>\n                            <button class=\"btn-icon btn-rec\" id=\"fsRecBtn_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/toggle_record')\">Gravar</button>\n                            <button class=\"btn-icon\" onclick=\"toggleFullscreen('videoWrapper_" + idx + "')\">Sair</button>\n                        </div>\n                    </div>\n\n                    <div class=\"action-bar\">\n                        <button id=\"camPowerBtn_" + idx + "\" class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/toggle_camera_power')\" title=\"Ligar/Desligar Câmera\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z\"/></svg>\n                            <span id=\"camPowerText_" + idx + "\">Câm. ON</span>\n                        </button>\n                        <button class=\"btn-icon btn-snap\" onclick=\"captureSnapshot(" + idx + ")\" title=\"Foto em alta resolução\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 15a3 3 0 100-6 3 3 0 000 6z\"/><path d=\"M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z\"/></svg>\n                            Foto HD\n                        </button>\n                        <button class=\"btn-icon\" onclick=\"toggleCameraAspect(" + idx + ")\" title=\"Alternar proporção / giro\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zM7.52 21.48C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z\"/></svg>\n                            Girar\n                        </button>\n                        <button class=\"btn-icon\" onclick=\"sendCmd(" + idx + ", '/action/toggle_camera')\" title=\"Alternar Câmera Frontal/Traseira\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M9 12c0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3-3 1.34-3 3zm11-6h-3.17L15 4H9L7.17 6H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z\"/></svg>\n                            Flip\n                        </button>\n                        <button id=\"lockBtn_" + idx + "\" class=\"btn-icon btn-warning\" onclick=\"sendCmd(" + idx + ", '/action/toggle_lock')\">Lock AF/AE</button>\n                        <button id=\"recBtn_" + idx + "\" class=\"btn-icon btn-rec\" onclick=\"sendCmd(" + idx + ", '/action/toggle_record')\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"#ffffff\"><circle cx=\"12\" cy=\"12\" r=\"7\"/></svg> Gravar\n                        </button>\n                        <button class=\"btn-icon\" onclick=\"toggleFullscreen('videoWrapper_" + idx + "')\" title=\"Tela Cheia\">\n                            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z\"/></svg>\n                            Cheia\n                        </button>\n                    </div>\n\n                    <div class=\"controls-container\" id=\"controls_" + idx + "\">\n                        <div class=\"card\">\n                            <div class=\"card-header\">\n                                <span>Lente &amp; Foco</span>\n                                <button class=\"zoom-btn\" style=\"flex:none; padding: 2px 8px;\" onclick=\"sendCmd(" + idx + ", '/action/toggle_focus')\">Auto/Man</button>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/zoom_05')\">.5×</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/zoom_1')\">1×</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/zoom_2')\">2×</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/zoom_3')\">3×</button>\n                            </div>\n                            <input type=\"range\" min=\"0\" max=\"10\" step=\"0.1\" value=\"5\"\n                                onchange=\"sendSlider(" + idx + ", 'focus', this.value)\"\n                                oninput=\"sendSlider(" + idx + ", 'focus', this.value)\">\n                        </div>\n\n                        <div class=\"card\">\n                            <div class=\"card-header\">\n                                <span>GPU Shader</span>\n                                <button class=\"zoom-btn\" id=\"gpuToggleBtn_" + idx + "\" style=\"flex:none; padding: 2px 6px; color: #00E676;\" onclick=\"sendCmd(" + idx + ", '/action/toggle_gpu')\">GPU ON</button>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" id=\"gpuFilt_crisp_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/set_gpu_filter?val=crisp')\">Crisp</button>\n                                <button class=\"zoom-btn\" id=\"gpuFilt_vivid_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/set_gpu_filter?val=vivid')\">Vivid</button>\n                                <button class=\"zoom-btn\" id=\"gpuFilt_lowlight_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/set_gpu_filter?val=lowlight')\">Luz+</button>\n                                <button class=\"zoom-btn\" id=\"gpuFilt_warm_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/set_gpu_filter?val=warm')\">Warm</button>\n                                <button class=\"zoom-btn\" id=\"gpuFilt_neutral_" + idx + "\" onclick=\"sendCmd(" + idx + ", '/action/set_gpu_filter?val=neutral')\">Off</button>\n                            </div>\n                            <div style=\"font-size: 10px; color: #888; display: flex; justify-content: space-between; align-items: center;\">\n                                <span id=\"gpuStatusText_" + idx + "\">Vulkan / GLES</span>\n                                <span id=\"gpuLatText_" + idx + "\" style=\"color:#4FC3F7; font-weight:bold;\">-- ms</span>\n                            </div>\n                        </div>\n\n                        <div class=\"card\">\n                            <div class=\"card-header\">\n                                <span>Áudio &amp; VU Meter</span>\n                                <button class=\"zoom-btn\" style=\"flex:none; padding: 2px 6px;\" onclick=\"sendCmd(" + idx + ", '/action/toggle_audio')\">Mic</button>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/mute_audio')\">Mutar</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/unmute_audio')\">Desmutar</button>\n                            </div>\n                            <div style=\"display: flex; align-items: center; gap: 6px;\">\n                                <input type=\"range\" min=\"0\" max=\"2.0\" step=\"0.05\" value=\"1.0\" style=\"flex: 1;\"\n                                    onchange=\"sendSlider(" + idx + ", 'audio_volume', this.value)\"\n                                    oninput=\"sendSlider(" + idx + ", 'audio_volume', this.value)\">\n                                <div class=\"vu-meter-bar-container\" style=\"width: 65px;\">\n                                    <div id=\"vuBar_" + idx + "_1\" class=\"vu-bar-seg\"></div>\n                                    <div id=\"vuBar_" + idx + "_2\" class=\"vu-bar-seg\"></div>\n                                    <div id=\"vuBar_" + idx + "_3\" class=\"vu-bar-seg\"></div>\n                                    <div id=\"vuBar_" + idx + "_4\" class=\"vu-bar-seg\"></div>\n                                    <div id=\"vuBar_" + idx + "_5\" class=\"vu-bar-seg\"></div>\n                                    <div id=\"vuBar_" + idx + "_6\" class=\"vu-bar-seg\"></div>\n                                </div>\n                            </div>\n                        </div>\n\n                        <div class=\"card\">\n                            <div class=\"card-header\">\n                                <span>WebRTC &amp; NDI Pro</span>\n                                <button class=\"zoom-btn\" id=\"webrtcToggleBtn_" + idx + "\" style=\"flex:none; padding: 2px 6px; color: #4FC3F7;\" onclick=\"sendCmd(" + idx + ", '/action/toggle_webrtc')\">WebRTC ON</button>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/toggle_transmission')\" id=\"ndiToggleBtn_" + idx + "\">NDI: OFF</button>\n                                <button class=\"zoom-btn\" onclick=\"testWebRtcSignaling(" + idx + ")\" id=\"rtcTestBtn_" + idx + "\">Testar ICE</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/toggle_torch')\">Lanterna</button>\n                            </div>\n                            <div style=\"font-size: 9px; color: #8A93A6; display: flex; flex-direction: column; gap: 2px;\">\n                                <div style=\"display: flex; justify-content: space-between;\">\n                                    <span id=\"rtcStateText_" + idx + "\">WebRTC: Fallback MJPEG (Pronto)</span>\n                                    <span id=\"rtcPeersText_" + idx + "\" style=\"color: #4FC3F7; font-weight: bold;\">0 Peers</span>\n                                </div>\n                                <div style=\"display: flex; justify-content: space-between;\">\n                                    <span id=\"ndiStateText_" + idx + "\">NDI: Standby</span>\n                                    <span id=\"rtcBitrateText_" + idx + "\" style=\"color: #81C784;\">-- Kbps</span>\n                                </div>\n                            </div>\n                        </div>\n\n                        <div class=\"card\">\n                            <div class=\"card-header\">\n                                <span>Câmera Pro &amp; ISP</span>\n                                <span id=\"activeLensText_" + idx + "\" style=\"font-size: 9px; color: #FFD54F;\">Padrão</span>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/select_lens:0')\">Wide</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/select_lens:1')\">Ultra</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/select_lens:2')\">Tele</button>\n                            </div>\n                            <div class=\"zoom-btn-row\">\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/set_quality_profile:broadcast')\">Broadcast</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/set_quality_profile:cinema')\">Cinema</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/set_quality_profile:hdr_vivid')\">HDR</button>\n                                <button class=\"zoom-btn\" onclick=\"sendCmd(" + idx + ", '/action/set_quality_profile:low_noise')\">LowNoise</button>\n                            </div>\n                        </div>\n                    </div>\n                ";
+                container.appendChild(camDiv);
+            });
+        }
+
+        function updateLayerUI() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/layer/status?_t=' + Date.now(), true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        var cur = data.layout || 'single';
+                        ['single', 'pip_bottom_right', 'pip_top_right', 'split_horizontal', 'split_vertical'].forEach(function(l) {
+                            var b = document.getElementById('studio_layout_' + l);
+                            if (b) {
+                                b.style.background = (cur === l) ? '#4FC3F7' : 'rgba(255,255,255,0.08)';
+                                b.style.color = (cur === l) ? '#000' : '#fff';
+                                b.style.borderColor = (cur === l) ? '#4FC3F7' : 'rgba(255,255,255,0.15)';
+                            }
+                        });
+                        var bLt = document.getElementById('studio_ov_lt');
+                        if (bLt) {
+                            bLt.style.background = data.lowerThirdEnabled ? '#00E676' : 'rgba(255,255,255,0.08)';
+                            bLt.style.color = data.lowerThirdEnabled ? '#000' : '#fff';
+                        }
+                        var bTs = document.getElementById('studio_ov_ts');
+                        if (bTs) {
+                            bTs.style.background = data.timestampEnabled ? '#4FC3F7' : 'rgba(255,255,255,0.08)';
+                            bTs.style.color = data.timestampEnabled ? '#000' : '#fff';
+                        }
+                        var bVu = document.getElementById('studio_ov_vu');
+                        if (bVu) {
+                            bVu.style.background = data.vuMeterEnabled ? '#4FC3F7' : 'rgba(255,255,255,0.08)';
+                            bVu.style.color = data.vuMeterEnabled ? '#000' : '#fff';
+                        }
+                        var bTal = document.getElementById('studio_ov_tally');
+                        if (bTal) {
+                            bTal.style.background = data.tallyBorderEnabled ? '#E53935' : 'rgba(255,255,255,0.08)';
+                            bTal.style.color = data.tallyBorderEnabled ? '#fff' : '#fff';
+                        }
+                    } catch(e) {}
+                }
+            };
+            xhr.send(null);
+        }
+
+        function setStudioLayout(layoutId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/layer/set_layout?layout=' + encodeURIComponent(layoutId), true);
+            xhr.onreadystatechange = function() { if (xhr.readyState === 4) updateLayerUI(); };
+            xhr.send(null);
+        }
+
+        function toggleStudioOverlay(type) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/layer/toggle_overlay?type=' + encodeURIComponent(type), true);
+            xhr.onreadystatechange = function() { if (xhr.readyState === 4) updateLayerUI(); };
+            xhr.send(null);
+        }
+
+        function updateStudioLowerThird() {
+            var title = prompt("Título do GC / Lower Third:", "OpenNDI Studio");
+            if (title === null) return;
+            var sub = prompt("Subtítulo / Apresentador:", "Ao Vivo");
+            if (sub === null) return;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/layer/set_lower_third?enabled=true&title=' + encodeURIComponent(title) + '&subtitle=' + encodeURIComponent(sub), true);
+            xhr.onreadystatechange = function() { if (xhr.readyState === 4) updateLayerUI(); };
+            xhr.send(null);
+        }
+
+        var syncWebRtcInFlight = false;
+        function syncWebRtc() {
+            if (syncWebRtcInFlight) return;
+            syncWebRtcInFlight = true;
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.timeout = 2000;
+                xhr.open('GET', '/api/webrtc/status?_t=' + new Date().getTime(), true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        syncWebRtcInFlight = false;
+                        if (xhr.status === 200) {
+                            try {
+                                var rtc = JSON.parse(xhr.responseText);
+                                updateWebRtcGlobalUI(rtc);
+                            } catch(e) {}
+                        }
+                    }
+                };
+                xhr.ontimeout = function() { syncWebRtcInFlight = false; };
+                xhr.onerror = function() { syncWebRtcInFlight = false; };
+                xhr.send(null);
+            } catch(e) {
+                syncWebRtcInFlight = false;
+            }
+        }
+
+        function updateWebRtcGlobalUI(rtc) {
+            var badge = document.getElementById('webrtcBadge_0');
+            var rtcState = document.getElementById('rtcStateText_0');
+            var rtcPeers = document.getElementById('rtcPeersText_0');
+            var rtcBitrate = document.getElementById('rtcBitrateText_0');
+            var rtcBtn = document.getElementById('webrtcToggleBtn_0');
+
+            if (rtcBtn) {
+                rtcBtn.style.color = rtc.enabled ? '#00E676' : '#888';
+                rtcBtn.innerHTML = rtc.enabled ? 'WebRTC ON' : 'WebRTC OFF';
+            }
+            if (rtcPeers) {
+                rtcPeers.innerHTML = (rtc.activePeers || 0) + ' Peers';
+            }
+            if (rtcBitrate) {
+                var kbps = rtc.bitrateKbps || 0;
+                rtcBitrate.innerHTML = kbps > 0 ? (kbps + ' Kbps') : (rtc.fps + ' fps • ' + rtc.resolution);
+            }
+            if (rtcState) {
+                if (rtc.activePeers > 0 && rtc.sdkAvailable) {
+                    rtcState.innerHTML = 'WebRTC: Transmitindo (' + rtc.rttMs + 'ms RTT)';
+                    rtcState.style.color = '#00E676';
+                } else if (rtc.fallbackMjpegActive) {
+                    rtcState.innerHTML = 'WebRTC: Fallback MJPEG (Pronto)';
+                    rtcState.style.color = '#4FC3F7';
+                } else {
+                    rtcState.innerHTML = 'WebRTC: Standby';
+                    rtcState.style.color = '#8A93A6';
+                }
+            }
+            if (badge) {
+                if (rtc.activePeers > 0 && rtc.sdkAvailable) {
+                    badge.innerHTML = '⚡ WEBRTC: ' + (rtc.rttMs > 0 ? rtc.rttMs + 'ms' : 'ATIVO');
+                    badge.style.color = '#00E676';
+                    badge.style.borderColor = 'rgba(0,230,118,0.4)';
+                } else if (rtc.fallbackMjpegActive) {
+                    badge.innerHTML = '⚡ WEBRTC (FALLBACK MJPEG)';
+                    badge.style.color = '#4FC3F7';
+                    badge.style.borderColor = 'rgba(79,195,247,0.4)';
+                } else {
+                    badge.innerHTML = '⚡ WEBRTC STANDBY';
+                    badge.style.color = '#888';
+                    badge.style.borderColor = 'rgba(255,255,255,0.1)';
+                }
+            }
+        }
+
+        function testWebRtcSignaling(idx) {
+            var btn = document.getElementById('rtcTestBtn_' + idx);
+            if (btn) btn.innerHTML = 'ICE...';
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/webrtc/offer', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var res = JSON.parse(xhr.responseText);
+                            alert("Handshake de Sinalização WebRTC concluído com sucesso!\n" +
+                                  "• Status: " + res.status + "\n" +
+                                  "• Peer ID: " + res.peerId + "\n" +
+                                  "• Fallback MJPEG: " + (res.fallbackMjpegActive ? "Ativo" : "Inativo") + "\n" +
+                                  "• SDP Answer gerado e validado.");
+                        } catch(e) {
+                            alert("Resposta recebida: " + xhr.responseText);
+                        }
+                    } else {
+                        alert("Erro no teste de sinalização: " + xhr.status);
+                    }
+                    if (btn) btn.innerHTML = 'Testar ICE';
+                }
+            };
+            xhr.send(JSON.stringify({
+                peerId: 'browser-test-' + Math.floor(Math.random()*1000),
+                sdp: 'v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=WebRtcProductionOffer\r\nt=0 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=rtpmap:96 H264/90000\r\n',
+                type: 'offer'
+            }));
+        }
+
+        var rtcSockets = {};
+        function setupWebRtcSignaling(idx) {
+            if (rtcSockets[idx]) return;
+            var wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            var wsHost = location.host || 'localhost:8080';
+            try {
+                var ws = new WebSocket(wsProto + '//' + wsHost + '/ws/webrtc');
+                rtcSockets[idx] = ws;
+                ws.onopen = function() {
+                    ws.send(JSON.stringify({
+                        type: 'register',
+                        clientId: 'web-prod-' + Math.random().toString(36).substring(2, 7),
+                        role: 'viewer'
+                    }));
+                };
+                ws.onmessage = function(evt) {
+                    try {
+                        var msg = JSON.parse(evt.data);
+                        var b = document.getElementById('webrtcBadge_' + idx);
+                        if (b && msg.type === 'answer') {
+                            b.innerHTML = '⚡ WEBRTC SINALIZADO';
+                            b.style.color = '#00E676';
+                        }
+                    } catch(e) {}
+                };
+                ws.onclose = function() {
+                    delete rtcSockets[idx];
+                    setTimeout(function() { setupWebRtcSignaling(idx); }, 5000);
+                };
+            } catch(e) {}
+        }
+
+        window.onload = function() {
+            renderCameras();
+            updateLayerUI();
+            syncState();
+            syncDiscovered();
+            syncWebRtc();
+            setInterval(syncState, 600);
+            setInterval(syncDiscovered, 3000);
+            setInterval(syncWebRtc, 1500);
+            setInterval(updateLayerUI, 2000);
+            setupWebRtcSignaling(0);
+        };
+    </script>
+<style>.cameras-grid{display:flex;flex-wrap:wrap}.camera-node{flex:1 1 420px;margin:6px}.controls-container{display:flex;flex-wrap:wrap}.controls-container .card{flex:1 1 190px;margin:3px}.video-wrapper{min-height:240px}.video-wrapper img{width:100%;height:auto}button:disabled,input:disabled,select:disabled{opacity:.4;cursor:default}.legacy-panel{padding:8px;text-align:left;background:#151922;border-radius:6px;margin:6px}.legacy-panel select{max-width:130px}button,select{margin:2px}</style></head>
+<body>
+    <div class="top-nav">
+        <div class="brand">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#4FC3F7"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+            <div class="brand-title">iPad mini 1</div>
+            <span class="brand-badge">Studio</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <input id="newHostInput" type="text" placeholder="IP:Porta (ex: 192.168.1.50:8080)" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 4px 8px; border-radius: 8px; font-size: 11px; font-family: monospace; width: 170px;" />
+            <button onclick="addCustomCameraHost()" style="background: #4FC3F7; color: #000; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">+ Host</button>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-btn active"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Ao Vivo</a>
+            <a href="/gallery" class="nav-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>Galeria</a>
+            <a href="/lite" class="nav-btn" style="border-color: rgba(0,230,118,0.4); color: #00E676;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>Modo Leve</a>
+        </div>
+    </div>
+
+    <!-- Studio Live Layer Switcher Toolbar -->
+    <div class="studio-toolbar">
+        <div class="toolbar-group">
+            <span class="toolbar-label">LAYOUT:</span>
+            <button id="studio_layout_single" onclick="setStudioLayout('single')" class="pill-btn active">Única</button>
+            <button id="studio_layout_pip_bottom_right" onclick="setStudioLayout('pip_bottom_right')" class="pill-btn">PiP ↘</button>
+            <button id="studio_layout_pip_top_right" onclick="setStudioLayout('pip_top_right')" class="pill-btn">PiP ↗</button>
+            <button id="studio_layout_split_horizontal" onclick="setStudioLayout('split_horizontal')" class="pill-btn">Split 50/50 ◫</button>
+            <button id="studio_layout_split_vertical" onclick="setStudioLayout('split_vertical')" class="pill-btn">Split V ⬒</button>
+        </div>
+        <div class="toolbar-group">
+            <span class="toolbar-label">OVERLAYS:</span>
+            <button id="studio_ov_lt" onclick="updateStudioLowerThird()" class="pill-btn">Lower Third (GC)</button>
+            <button id="studio_ov_ts" onclick="toggleStudioOverlay('timestamp')" class="pill-btn">Timestamp ⏱</button>
+            <button id="studio_ov_vu" onclick="toggleStudioOverlay('vumeter')" class="pill-btn">VU Áudio 📊</button>
+            <button id="studio_ov_tally" onclick="toggleStudioOverlay('tally')" class="pill-btn">Tally 🔴</button>
+        </div>
+        <div class="toolbar-group">
+            <span id="studio_net_stats" style="font-size: 10px; font-family: monospace; font-weight: 700; color: #00E676; background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); padding: 3px 8px; border-radius: 6px;">🌐 1 Câmera • ~2.2 Mbps</span>
+            <button id="auto_sd_toggle" onclick="toggleAutoAdaptSd()" class="pill-btn active" style="background: #00E676; color: #000;" title="Alterna proteção automática contra congestionamento de rede">Auto-SD Ativo ✓</button>
+        </div>
+    </div>
+
+    <div id="camerasContainer" class="cameras-grid"></div>
+
+    <div class="fab-container">
+        <button id="globalRecBtn" class="btn-global-rec" onclick="toggleAllRecords()" title="Gravar em Todas as Câmeras">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#ffffff"><circle cx="12" cy="12" r="8"/></svg>
+        </button>
+    </div>
+<script src="/legacy.js"></script></body>
+</html>
+        
