@@ -1,0 +1,16 @@
+{
+  "workflow_run": 38194119421,
+  "commit": "268d996049b72626bda4fa2dc9f5d403195ea05d",
+  "artifact_files": [
+    "OpenNDILegacy-unsigned.ipa",
+    "build.log",
+    "com.shockcinegrafia.openndilegacy_0.3.0-1+debug_iphoneos-arm.deb"
+  ],
+  "architecture": "armv7",
+  "mach_o_bits": 32,
+  "binary_minimum_ios": "9.0.0",
+  "bundle_version": "0.3.0",
+  "ipa_sha256": "c8aeb4c4742b5491af2d0e287970938965b22a9fe1c380de7905454e996ea4d0",
+  "sdk_in_artifact": false,
+  "hardware_tested": false
+}
