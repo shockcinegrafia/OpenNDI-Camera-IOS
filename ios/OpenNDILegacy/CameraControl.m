@@ -17,6 +17,7 @@
     for (AVCaptureInput *input in self.session.inputs) if ([input isKindOfClass:[AVCaptureDeviceInput class]]) return (AVCaptureDeviceInput *)input;
     return nil;
 }
+- (void)clearFrames { if (self.frameQueue) dispatch_sync(self.frameQueue, ^{ [self.store clear]; }); else [self.store clear]; }
 - (NSArray *)resolutions {
     NSMutableArray *items = [NSMutableArray array];
     for (NSString *preset in @[AVCaptureSessionPreset352x288, AVCaptureSessionPreset640x480, AVCaptureSessionPreset1280x720])
@@ -83,16 +84,16 @@
             if (connection.isVideoOrientationSupported) connection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
             if (connection.isVideoMirroringSupported) { connection.automaticallyAdjustsVideoMirroring = NO; connection.videoMirrored = NO; }
         }
-        [self.store clear];
+        [self clearFrames];
     } else if ([type isEqualToString:@"toggle_camera_power"]) {
-        if (self.session.isRunning) { [self.session stopRunning]; [self.store clear]; } else [self.session startRunning];
+        if (self.session.isRunning) { [self.session stopRunning]; [self clearFrames]; } else [self.session startRunning];
     } else if ([type isEqualToString:@"toggle_dark_screen"] || [type isEqualToString:@"dark_screen"]) {
         if (value.length && ![value isEqualToString:@"0"] && ![value isEqualToString:@"1"]) return [self failure:@"Use 0 or 1" status:400];
         self.dark = value.length ? value.boolValue : !self.dark;
         if (self.darkHandler) self.darkHandler(self.dark);
     } else if ([type isEqualToString:@"set_resolution"]) {
         if (![[self resolutions] containsObject:value]) return [self failure:@"Resolution unavailable" status:409];
-        [self.session beginConfiguration]; self.session.sessionPreset = value; [self.session commitConfiguration]; [self.store clear];
+        [self.session beginConfiguration]; self.session.sessionPreset = value; [self.session commitConfiguration]; [self clearFrames];
     } else if ([type isEqualToString:@"set_zoom"] || [type hasPrefix:@"zoom_"] || [type isEqualToString:@"tap_focus"] || [type isEqualToString:@"toggle_torch"] || [type isEqualToString:@"set_fps"]) {
         double number = 0, x = 0, y = 0;
         BOOL zoom = [type isEqualToString:@"set_zoom"] || [type hasPrefix:@"zoom_"];

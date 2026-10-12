@@ -112,6 +112,13 @@ jobs:
       - name: Check versioned web resources
         run: test -s ios/OpenNDILegacy/index_full.html && test -s ios/OpenNDILegacy/index_lite.html && test -s ios/OpenNDILegacy/legacy.js
 
+      - name: Verify production HTTP transport on macOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun --sdk macosx clang -fobjc-arc -Wno-incomplete-implementation -Iios/OpenNDILegacy scripts/http-harness.m ios/OpenNDILegacy/RemoteHTTPServer.m -framework Foundation -framework AVFoundation -o "$RUNNER_TEMP/http-harness"
+          python3 scripts/test-http.py "$RUNNER_TEMP/http-harness"
+
       - name: Build ARMv7 application
         shell: bash
         run: |

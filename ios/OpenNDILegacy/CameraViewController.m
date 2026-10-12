@@ -106,6 +106,7 @@
     }
     self.webServer = [[RemoteHTTPServer alloc] initWithFrameStore:self.frameStore];
     self.control = [[CameraControl alloc] initWithSession:self.session store:self.frameStore];
+    self.control.frameQueue = self.captureQueue;
     self.webServer.control = self.control;
     __weak CameraViewController *weakSelf = self;
     self.control.darkHandler = ^(BOOL dark) { dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf setDark:dark]; }); };
